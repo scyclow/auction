@@ -26,10 +26,10 @@ const bidWithReward = 'bid(uint256,bool)'
 
 const expectOwnableError = p => expectRevert(p, 'Ownable: caller is not the owner')
 const createGenericAuction = () => MinterAuction.connect(admin).create(ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
+const contractBalance = contract => contract.provider.getBalance(contract.address)
 
-
-let admin, bidder1, bidder2, bidder3
-let MinterAuction
+let admin, bidder1, bidder2
+let MinterAuction, MinterMock, RewardMinterMock, AllowListMock, FaultyMinterMock
 
 
 
@@ -39,7 +39,6 @@ const auctionSetup = async () => {
   admin = signers[0]
   bidder1 = signers[1]
   bidder2 = signers[2]
-  bidder3 = signers[3]
 
 
   const MinterAuctionFactory = await ethers.getContractFactory('MinterAuction', admin)
@@ -58,6 +57,10 @@ const auctionSetup = async () => {
   AllowListMock = await AllowListMockFactory.deploy()
   await AllowListMock.deployed()
 
+  const FaultyMinterMockFactory = await ethers.getContractFactory('FaultyMinterMock', admin)
+  FaultyMinterMock = await FaultyMinterMockFactory.deploy()
+  await FaultyMinterMock.deployed()
+
 }
 
 
@@ -69,7 +72,7 @@ describe('MinterAuction', () => {
     await auctionSetup()
   })
 
-  describe.only('create', () => {
+  describe('create', () => {
     it('creates the auction', async () => {
       expect(await MinterAuction.connect(admin).auctionCount()).to.equal(0)
       await MinterAuction.connect(admin).create(
@@ -106,7 +109,7 @@ describe('MinterAuction', () => {
     })
   })
 
-  describe.only('isActive', () => {
+  describe('isActive', () => {
     it('returns true if it hasnt started yet', async () => {
       await createGenericAuction()
 
@@ -195,7 +198,7 @@ describe('MinterAuction', () => {
     })
   })
 
-  describe.only('bid', () => {
+  describe('bid', () => {
     it('updates the highest bidder for an auction', async () => {
       await createGenericAuction()
       const noBidder = await MinterAuction.connect(admin).auctionIdToHighestBid(0)
@@ -390,7 +393,7 @@ describe('MinterAuction', () => {
       await MinterAuction.connect(admin).cancel(0)
       await expectRevert(
         MinterAuction.connect(admin).cancel(0),
-        'Auction has settled'
+        'Auction is not active'
       )
     })
 
@@ -399,7 +402,7 @@ describe('MinterAuction', () => {
       await MinterAuction.connect(bidder1)[bid](0, bidAmount(0.1))
       await expectRevert(
         MinterAuction.connect(admin).cancel(0),
-        'Auction is active'
+        'Auction has started'
       )
     })
 
@@ -419,622 +422,135 @@ describe('MinterAuction', () => {
 
       await expectRevert(
         MinterAuction.connect(admin).cancel(0),
-        'Auction has settled'
+        'Auction is not active'
       )
     })
   })
 
   describe('settle', () => {
     it('mints the correct token + pays the correct beneficiary', async () => {
+      await createGenericAuction() // 0
+      await createGenericAuction() // 1
+      await createGenericAuction() // 2
 
+      const startingContractBalance = ethVal(await contractBalance(MinterAuction))
+      const startingAdminBalance = ethVal(await admin.getBalance())
+
+      await MinterAuction.connect(bidder1)[bid](0, bidAmount(0.1))
+      await MinterAuction.connect(bidder2)[bid](0, bidAmount(0.2))
+
+      const middleContractBalance = ethVal(await contractBalance(MinterAuction))
+
+      await time.increase(time.duration.seconds(ONE_DAY + 1))
+
+      await MinterAuction.connect(bidder1).settle(0)
+      await expectRevert(
+        MinterAuction.connect(bidder1).settle(1),
+        'Auction is still active'
+      )
+
+      const endingContractBalance = ethVal(await contractBalance(MinterAuction))
+      const endingAdminBalance = ethVal(await admin.getBalance())
+
+
+      expect(middleContractBalance).to.equal(startingContractBalance +  0.2)
+      expect(endingContractBalance).to.equal(startingContractBalance)
+
+      expect(endingAdminBalance - startingAdminBalance).to.be.closeTo(0.2, 0.00001)
+
+      const auction = await MinterAuction.connect(admin).auctionIdToAuction(0)
+      expect(auction.isSettled).to.equal(true)
     })
 
     it('emits Settled', async () => {
+      await createGenericAuction()
+      await MinterAuction.connect(bidder1)[bid](0, bidAmount(0.1))
+      await time.increase(time.duration.seconds(ONE_DAY + 1))
+      await MinterAuction.connect(bidder1).settle(0)
 
+      const latest = num(await time.latest())
+
+      const auctionEvents = await MinterAuction.queryFilter({
+        address: MinterAuction.address,
+        topics: []
+      })
+
+      expect(auctionEvents.length).to.equal(3)
+      expect(auctionEvents[2].event).to.equal('Settled')
+      expect(num(auctionEvents[2].args.auctionId)).to.equal(0)
+      expect(num(auctionEvents[2].args.timestamp)).to.equal(latest)
     })
 
     it('reverts if auction is still active', async () => {
+      await createGenericAuction()
+      await expectRevert(
+        MinterAuction.connect(bidder1).settle(0),
+        'Auction is still active'
+      )
+      await MinterAuction.connect(bidder1)[bid](0, bidAmount(0.1))
 
+      await expectRevert(
+        MinterAuction.connect(bidder1).settle(0),
+        'Auction is still active'
+      )
+      await time.increase(time.duration.seconds(ONE_DAY - 30))
+      await expectRevert(
+        MinterAuction.connect(bidder1).settle(0),
+        'Auction is still active'
+      )
+      await time.increase(time.duration.seconds(31))
+
+      await MinterAuction.connect(admin).settle(0)
     })
 
     it('reverts if auction has alredy been settled', async () => {
+      await createGenericAuction()
+      await MinterAuction.connect(bidder1)[bid](0, bidAmount(0.1))
+      await time.increase(time.duration.seconds(ONE_DAY +1))
 
+      await MinterAuction.connect(bidder1).settle(0)
+
+      await expectRevert(
+        MinterAuction.connect(bidder1).settle(0),
+        'Auction has already been settled'
+      )
     })
 
     it('refunds the bidder if minting fails for some reason', async () => {
+      await MinterAuction.connect(admin).create(ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, FaultyMinterMock.address, ZERO_ADDR, ZERO_ADDR)
 
-    })
-  })
+      const startingContractBalance = ethVal(await contractBalance(MinterAuction))
+      const startingAdminBalance = ethVal(await admin.getBalance())
+      const startingBidderBalance = ethVal(await bidder1.getBalance())
 
-  describe('multiple auctions', () => {
-    it('multiple simultaneous auctions work', async () => {
+      await MinterAuction.connect(bidder1)[bid](0, bidAmount(0.1))
 
+      await time.increase(time.duration.seconds(ONE_DAY + 1))
+
+      await MinterAuction.connect(bidder1).settle(0)
+
+      const endingContractBalance = ethVal(await contractBalance(MinterAuction))
+      const endingAdminBalance = ethVal(await admin.getBalance())
+      const endingBidderBalance = ethVal(await bidder1.getBalance())
+
+
+      expect(endingContractBalance).to.equal(startingContractBalance)
+      expect(endingAdminBalance).to.be.closeTo(startingAdminBalance, 0.01)
+      expect(endingBidderBalance).to.be.closeTo(startingBidderBalance, 0.01)
+
+      const auction = await MinterAuction.connect(admin).auctionIdToAuction(0)
+      expect(auction.isSettled).to.equal(true)
+
+      const auctionEvents = await MinterAuction.queryFilter({
+        address: MinterAuction.address,
+        topics: []
+      })
+
+      expect(auctionEvents.length).to.equal(3)
+      expect(auctionEvents[2].event).to.equal('Settled')
     })
   })
 })
 
 
 
-
-
-
-
-  // describe('isAuctionActive', () => {
-  //   describe('happy path', () => {
-  //     it('should return true when between the start and end time, but false otherwise', async () => {
-  //       expect(await SequelsMultiAuction.connect(admin).isAuctionActive(0)).to.equal(false)
-  //       await time.increaseTo(START_TIME_MULTI)
-  //       expect(await SequelsMultiAuction.connect(admin).isAuctionActive(0)).to.equal(true)
-  //       await time.increaseTo(END_TIME_MULTI - 1)
-  //       expect(await SequelsMultiAuction.connect(admin).isAuctionActive(0)).to.equal(true)
-  //       await time.increaseTo(END_TIME_MULTI)
-  //       expect(await SequelsMultiAuction.connect(admin).isAuctionActive(0)).to.equal(false)
-
-  //     })
-  //   })
-
-
-  //   describe('last minute bids', () => {
-  //     it('should return true if current time is < 10 min after last bid', async () => {
-  //       await time.increaseTo(START_TIME_MULTI)
-  //       await SequelsMultiAuction.connect(bidder1).bid(1, bidAmount(0.01))
-
-  //       await time.increaseTo(END_TIME_MULTI - 20)
-  //       await SequelsMultiAuction.connect(bidder1).bid(2, bidAmount(0.01))
-
-  //       await time.increaseTo(END_TIME_MULTI + 1)
-  //       expect(await SequelsMultiAuction.connect(admin).isAuctionActive(1)).to.equal(false)
-  //       expect(await SequelsMultiAuction.connect(admin).isAuctionActive(2)).to.equal(true)
-
-  //       await time.increaseTo(END_TIME_MULTI + 579)
-  //       expect(await SequelsMultiAuction.connect(admin).isAuctionActive(2)).to.equal(true)
-
-  //       await time.increaseTo(END_TIME_MULTI + 581)
-  //       expect(await SequelsMultiAuction.connect(admin).isAuctionActive(2)).to.equal(false)
-  //     })
-  //   })
-  // })
-
-  // describe('bidding', () => {
-  //   describe('happy path', () => {
-  //     it('should work', async () => {
-  //       const tokenId1 = 1
-  //       const tokenId2 = 2
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId1, bidAmount(0.01))
-  //       await SequelsMultiAuction.connect(bidder2).bid(tokenId1, bidAmount(0.02))
-  //       await SequelsMultiAuction.connect(bidder3).bid(tokenId1, bidAmount(0.04))
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId1, bidAmount(0.08))
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId2, bidAmount(0.01))
-
-  //       const auctionEvents = await SequelsMultiAuction.queryFilter({
-  //         address: SequelsMultiAuction.address,
-  //         topics: []
-  //       })
-
-  //       expect(auctionEvents.length).to.equal(5)
-  //       expect(auctionEvents.every(e => e.event === 'BidMade')).to.equal(true)
-  //     })
-
-  //     it('should revert if bid is before (or after) deadline', async () => {
-  //       await time.increaseTo(START_TIME_MULTI - 20)
-
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).bid(1, bidAmount(0.01)),
-  //         'Auction for this tokenId is not active'
-  //       )
-  //       await time.increaseTo(END_TIME_MULTI)
-
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).bid(1, bidAmount(0.01)),
-  //         'Auction for this tokenId is not active'
-  //       )
-
-  //     })
-
-  //     it('should revert if bid is < 0.01 ETH', async () => {
-  //       await time.increaseTo(START_TIME_MULTI)
-
-
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder2).bid(1, bidAmount(0.0099999999999)),
-  //         'Bid not high enough'
-  //       )
-  //     })
-
-  //     it('should revert if bid is not at least 10% higher than previous bid', async () => {
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(1, bidAmount(1))
-
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder2).bid(1, bidAmount(1.099999999999)),
-  //         'Bid not high enough'
-  //       )
-
-  //       await SequelsMultiAuction.connect(bidder2).bid(1, bidAmount(1.1))
-  //     })
-  //   })
-
-  //   describe('setBidIncreaseBps', () => {
-  //     it('should set the min increase in bps', async () => {
-  //       const tokenId = 27
-  //       await time.increaseTo(START_TIME_MULTI)
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(1))
-  //       await SequelsMultiAuction.connect(bidder2).bid(tokenId, bidAmount(1.1))
-
-  //       await SequelsMultiAuction.connect(admin).setBidIncreaseBps(2000)
-
-  //       expect(await SequelsMultiAuction.connect(admin).bidIncreaseBps()).to.equal(2000)
-
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(1.21)),
-  //         'Bid not high enough'
-  //       )
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(1.32))
-  //     })
-
-  //     it('should revert if called by non admin', async () => {
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).setBidIncreaseBps(2000),
-  //         'Ownable: caller is not the owner'
-  //       )
-  //     })
-  //   })
-
-  //   describe('setMinBid', () => {
-  //     it('should set the minimum bid', async () => {
-  //       const tokenId = 42
-  //       await time.increaseTo(START_TIME_MULTI)
-  //       await SequelsMultiAuction.connect(admin).setMinBid(toETH(0.02))
-
-  //       expect(num(await SequelsMultiAuction.connect(admin).minBid())).to.equal(0.02)
-
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01)),
-  //         'Bid not high enough'
-  //       )
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.02))
-  //     })
-
-  //     it('should set the minimum bid for admin settlement', async () => {
-  //       await SequelsMultiAuction.connect(admin).setMinBid(toETH(0.02))
-  //       await time.increaseTo(END_TIME_MULTI)
-
-
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(admin).settleAuction(1, bidAmount(0.01)),
-  //         'Bid not high enough'
-  //       )
-  //     })
-
-  //     it('should revert if called by non admin', async () => {
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).setBidIncreaseBps(2000),
-  //         'Ownable: caller is not the owner'
-  //       )
-  //     })
-  //   })
-
-  //   describe('bidding on tokens within range', () => {
-  //     it('should work', async () => {
-  //       await time.increaseTo(START_TIME_MULTI)
-  //       await Promise.all(
-  //         times(100,
-  //           tokenId => SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01))
-  //         )
-  //       )
-  //     })
-  //   })
-
-  //   describe('bidding on tokens outside range', () => {
-  //     it('should revert', async () => {
-  //       await time.increaseTo(START_TIME_MULTI)
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).bid(100, bidAmount(0.01)),
-  //         'Invalid tokenId'
-  //       )
-  //     })
-  //   })
-
-
-  //   describe('FPP bidding', () => {
-  //     let FPP, fppOwner, fppAdmin
-  //     beforeEach(async () => {
-  //       const FPPFactory = await ethers.getContractFactory('MockFPP')
-  //       FPP = await FPPFactory.attach('0xA8A425864dB32fCBB459Bf527BdBb8128e6abF21')
-
-  //       fppOwner = await ethers.getImpersonatedSigner('0x47144372eb383466D18FC91DB9Cd0396Aa6c87A4')
-  //       fppAdmin = await ethers.getImpersonatedSigner('0xC5325831462D809fbf532D71029FA3EFe35CbcCE')
-
-  //       await FPP.connect(fppAdmin).addProjectInfo(
-  //         SequelsMultiAuction.address,
-  //         SequelsBase.address,
-  //         'Sequels'
-  //       )
-  //     })
-
-  //     it('should work normally and not log a pass use', async () => {
-  //       const tokenId = 1
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01))
-  //       await SequelsMultiAuction.connect(fppOwner).bidWithMintPass(tokenId, 1, bidAmount(0.02))
-  //       await SequelsMultiAuction.connect(bidder3).bid(tokenId, bidAmount(0.04))
-  //       await SequelsMultiAuction.connect(fppOwner).bidWithMintPass(tokenId, 1, bidAmount(0.08))
-
-  //       const auctionEvents = await SequelsMultiAuction.queryFilter({
-  //         address: SequelsMultiAuction.address,
-  //         topics: []
-  //       })
-
-  //       expect(auctionEvents.length).to.equal(4)
-  //       expect(auctionEvents.every(e => e.event === 'BidMade')).to.equal(true)
-
-  //       expect(await FPP.connect(fppOwner).passUses(1, 2)).to.equal(0)
-  //     })
-
-  //     it('should revert if FPP is not owned by caller', async () => {
-  //       const tokenId = 1
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01))
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder2).bidWithMintPass(tokenId, 1, bidAmount(0.02)),
-  //         'Caller is not the owner of FPP'
-  //       )
-  //     })
-  //   })
-  // })
-
-  // describe('refunding', () => {
-  //   it('should refund the previous bidder', async () => {
-  //     const tokenId = 1
-  //     await time.increaseTo(START_TIME_MULTI)
-
-  //     const startingEthBalance = num(await bidder1.getBalance())
-
-  //     await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(1))
-  //     await SequelsMultiAuction.connect(bidder2).bid(tokenId, bidAmount(2))
-
-  //     const endingEthBalance = num(await bidder1.getBalance())
-
-  //     expect(endingEthBalance - startingEthBalance).to.be.closeTo(0, 0.01)
-  //   })
-
-  //   it('should refund the previous bidder for their first bid if they make multiple bids', async () => {
-  //     const tokenId = 1
-  //     await time.increaseTo(START_TIME_MULTI)
-
-  //     const startingEthBalance = num(await bidder1.getBalance())
-
-  //     await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(1))
-  //     await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(2))
-
-  //     const endingEthBalance = num(await bidder1.getBalance())
-
-  //     expect(startingEthBalance - endingEthBalance).to.be.closeTo(2, 0.01)
-  //   })
-  // })
-
-  // describe('settling auction', () => {
-  //   async function expectSettlementToBeCorrect(bidder, beneficiary, settler, bid, tokenId, rebate=0) {
-  //     const startingBeneficiaryBalance = num(await beneficiary.getBalance())
-  //     const preSettlementWinnerBalance = num(await bidder.getBalance())
-
-  //     expect(
-  //       await SequelsBase.connect(bidder).exists(tokenId)
-  //     ).to.equal(false)
-
-  //     await SequelsMultiAuction.connect(settler).settleAuction(tokenId)
-  //     const endingBeneficiaryBalance = num(await beneficiary.getBalance())
-  //     const endingWinnerBalance = num(await bidder.getBalance())
-
-  //     expect(
-  //       (await SequelsBase.connect(bidder).balanceOf(bidder.address)).toNumber()
-  //     ).to.equal(1)
-
-  //     expect(
-  //       await SequelsBase.connect(bidder).ownerOf(tokenId)
-  //     ).to.equal(bidder.address)
-
-  //     expect(
-  //       await SequelsBase.connect(bidder).exists(tokenId)
-  //     ).to.equal(true)
-
-  //     expect(endingBeneficiaryBalance - startingBeneficiaryBalance).to.be.closeTo(bid - (bid*rebate), 0.001)
-  //     expect(endingWinnerBalance - preSettlementWinnerBalance).to.be.closeTo((bid*rebate), 0.00001)
-  //   }
-
-  //   describe('when there is a non-FPP bidder', () => {
-  //     it('should mint the correct token to the bidder send the eth to the beneficiary, and not refund the winner', async () => {
-  //       const tokenId = 1
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01))
-  //       await time.increase(time.duration.days(1))
-
-  //       await expectSettlementToBeCorrect(bidder1, admin, bidder3, 0.01, tokenId)
-
-  //       const auctionEvents = await SequelsMultiAuction.queryFilter({
-  //         address: SequelsMultiAuction.address,
-  //         topics: []
-  //       })
-
-  //       expect(auctionEvents.length).to.equal(2)
-  //       expect(auctionEvents[1].event).to.equal('Settled')
-  //     })
-  //   })
-
-  //   describe('when there are multiple bidders', () => {
-  //     it('should mint the correct token to the final bidder and send the eth to the beneficiary', async () => {
-  //       const tokenId = 10
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01))
-  //       await SequelsMultiAuction.connect(bidder2).bid(tokenId, bidAmount(0.02))
-  //       await SequelsMultiAuction.connect(bidder3).bid(tokenId, bidAmount(0.03))
-
-  //       await time.increase(time.duration.days(1))
-
-  //       await expectSettlementToBeCorrect(bidder3, admin, bidder1, 0.03, tokenId)
-  //     })
-  //   })
-
-  //   describe('when things are multiple auctions happening', () => {
-  //     it('should mint the correct token to the bidder and send the eth to the beneficiary', async () => {
-  //       const tokenId = 10
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01))
-  //       await SequelsMultiAuction.connect(bidder2).bid(tokenId+1, bidAmount(0.01))
-  //       await SequelsMultiAuction.connect(bidder3).bid(tokenId+2, bidAmount(0.01))
-
-  //       await time.increaseTo(END_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(admin).setBeneficiary(beneficiary1.address, beneficiary1.address)
-
-  //       await expectSettlementToBeCorrect(bidder2, beneficiary1, bidder1, 0.01, tokenId+1)
-  //       await expectSettlementToBeCorrect(bidder3, beneficiary1, bidder1, 0.01, tokenId+2)
-  //       await expectSettlementToBeCorrect(bidder1, beneficiary1, bidder2, 0.01, tokenId)
-  //     })
-  //   })
-
-  //   describe('when random person attempts to settle and beneficiary != admin', () => {
-  //     it('should mint the correct token to the bidder and send the eth to the beneficiary', async () => {
-  //       const tokenId = 10
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01))
-  //       await time.increase(time.duration.days(1))
-
-  //       await SequelsMultiAuction.connect(admin).setBeneficiary(beneficiary1.address, beneficiary1.address)
-
-  //       await expectSettlementToBeCorrect(bidder1, beneficiary1, bidder3, 0.01, tokenId)
-  //     })
-  //   })
-
-  //   describe('when there is no bidder', () => {
-  //     const tokenId = 10
-
-  //     beforeEach(async () => {
-  //       await time.increaseTo(START_TIME_MULTI)
-  //       await SequelsMultiAuction.connect(admin).setBeneficiary(beneficiary1.address, beneficiary1.address)
-  //     })
-
-  //     it('should revert if someone other than the admin attempts to buy', async () => {
-  //       await time.increaseTo(END_TIME_MULTI)
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).settleAuction(tokenId, bidAmount(0.01)),
-  //         'Ownable: caller is not the owner'
-  //       )
-  //     })
-
-  //     it('should revert if admin attempts to buy for less than min price', async () => {
-  //       await time.increaseTo(END_TIME_MULTI)
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(admin).settleAuction(tokenId),
-  //         'Bid not high enough'
-  //       )
-  //     })
-
-  //     it('should allow the admin to buy for 0.01 + send eth to beneficiary', async () => {
-  //       const startingAdminBalance = num(await admin.getBalance())
-  //       const startingBeneficiaryBalance = num(await beneficiary1.getBalance())
-
-  //       expect(
-  //         num(await SequelsBase.connect(admin).balanceOf(admin.address))
-  //       ).to.equal(0)
-
-  //       expect(
-  //         await SequelsBase.connect(admin).exists(tokenId)
-  //       ).to.equal(false)
-
-  //       await time.increaseTo(END_TIME_MULTI)
-  //       await SequelsMultiAuction.connect(admin).settleAuction(tokenId, bidAmount(0.01))
-
-  //       const endingAdminBalance = num(await admin.getBalance())
-  //       const endingBeneficiaryBalance = num(await beneficiary1.getBalance())
-
-  //       expect(
-  //         (await SequelsBase.connect(admin).balanceOf(admin.address)).toNumber()
-  //       ).to.equal(1)
-
-  //       expect(
-  //         await SequelsBase.connect(admin).ownerOf(tokenId)
-  //       ).to.equal(admin.address)
-
-  //       expect(
-  //         await SequelsBase.connect(admin).exists(tokenId)
-  //       ).to.equal(true)
-
-  //       expect(endingBeneficiaryBalance - startingBeneficiaryBalance).to.be.closeTo(0.01, 0.00001)
-  //       expect(startingAdminBalance - endingAdminBalance).to.be.closeTo(0.01, 0.01)
-  //     })
-  //   })
-
-
-  //   describe('setBeneficiary', () => {
-  //     it('should update the beneficiary', async () => {
-  //       const tokenId = 10
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01))
-  //       await SequelsMultiAuction.connect(bidder2).bid(tokenId+1, bidAmount(0.01))
-  //       await time.increase(time.duration.days(1))
-
-  //       await SequelsMultiAuction.connect(admin).setBeneficiary(beneficiary1.address, beneficiary1.address)
-  //       expect(await SequelsMultiAuction.connect(admin).beneficiary1()).to.equal(beneficiary1.address)
-  //       await expectSettlementToBeCorrect(bidder1, beneficiary1, admin, 0.01, tokenId)
-
-  //       await SequelsMultiAuction.connect(admin).setBeneficiary(admin.address, beneficiary2.address)
-  //       expect(await SequelsMultiAuction.connect(admin).beneficiary1()).to.equal(admin.address)
-  //       expect(await SequelsMultiAuction.connect(admin).beneficiary2()).to.equal(beneficiary2.address)
-  //       await expectSettlementToBeCorrect(bidder2, admin, admin, 0.01, tokenId+1)
-  //     })
-
-  //     it('should revert if called by someone other than the admin', async () => {
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).setBeneficiary(bidder1.address, bidder1.address),
-  //         'Ownable: caller is not the owner'
-  //       )
-  //     })
-  //   })
-
-
-  //   describe('before auction is completed', () => {
-  //     it('should revert', async () => {
-  //       const tokenId = 10
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01))
-
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).settleAuction(tokenId),
-  //         'Auction for this tokenId is still active'
-  //       )
-  //     })
-  //   })
-
-  //   describe('when auction is already settled', () => {
-  //     it('should revert', async () => {
-  //       const tokenId = 10
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(bidder1).bid(tokenId, bidAmount(0.01))
-  //       await time.increase(time.duration.days(1))
-  //       await SequelsMultiAuction.connect(bidder1).settleAuction(tokenId)
-
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).settleAuction(tokenId),
-  //         'Auction has already been settled'
-  //       )
-  //     })
-  //   })
-
-  //   describe('when the winner used a FPP pass', () => {
-  //     let FPP, fppOwner, fppAdmin
-  //     beforeEach(async () => {
-  //       const FPPFactory = await ethers.getContractFactory('MockFPP')
-  //       FPP = await FPPFactory.attach('0xA8A425864dB32fCBB459Bf527BdBb8128e6abF21')
-
-  //       fppOwner = await ethers.getImpersonatedSigner('0x47144372eb383466D18FC91DB9Cd0396Aa6c87A4')
-  //       fppAdmin = await ethers.getImpersonatedSigner('0xC5325831462D809fbf532D71029FA3EFe35CbcCE')
-
-  //       await SequelsMultiAuction.connect(admin).setBeneficiary(beneficiary1.address, beneficiary2.address)
-
-  //       await FPP.connect(fppAdmin).addProjectInfo(
-  //         SequelsMultiAuction.address,
-  //         SequelsBase.address,
-  //         'Sequels'
-  //       )
-  //     })
-
-  //     it('should refund a 10% discount by default, and forward the rest to beneficiary2', async () => {
-  //       const tokenId = 10
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(fppOwner).bidWithMintPass(tokenId, 1, bidAmount(1))
-  //       await time.increase(time.duration.days(1))
-
-  //       await expectSettlementToBeCorrect(fppOwner, beneficiary2, bidder3, 1, tokenId, 0.1)
-
-  //       const auctionEvents = await SequelsMultiAuction.queryFilter({
-  //         address: SequelsMultiAuction.address,
-  //         topics: []
-  //       })
-
-  //       expect(auctionEvents.length).to.equal(2)
-  //       expect(auctionEvents[1].event).to.equal('Settled')
-  //     })
-
-  //     it('should refund a the correct discount when updated, and forward the rest to beneficiary2', async () => {
-  //       await SequelsMultiAuction.connect(admin).setMintPassRebateBps(500)
-
-  //       const tokenId = 10
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(fppOwner).bidWithMintPass(tokenId, 1, bidAmount(1))
-  //       await time.increase(time.duration.days(1))
-
-  //       await expectSettlementToBeCorrect(fppOwner, beneficiary2, bidder3, 1, tokenId, 0.05)
-
-  //       const auctionEvents = await SequelsMultiAuction.queryFilter({
-  //         address: SequelsMultiAuction.address,
-  //         topics: []
-  //       })
-
-  //       expect(auctionEvents.length).to.equal(2)
-  //       expect(auctionEvents[1].event).to.equal('Settled')
-  //     })
-
-  //     it('should not refund the bidder if they no longer own the FPP, and forward settlement amount to beneficiary1', async () => {
-  //       const tokenId = 10
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(fppOwner).bidWithMintPass(tokenId, 1, bidAmount(1))
-  //       await time.increase(time.duration.days(1))
-
-  //       FPP.connect(fppOwner)[safeTransferFrom](fppOwner.address, fppAdmin.address, 1)
-
-  //       await expectSettlementToBeCorrect(fppOwner, beneficiary1, bidder3, 1, tokenId)
-  //     })
-
-  //     it('should log a FPP pass use', async () => {
-  //       const tokenId = 10
-  //       await time.increaseTo(START_TIME_MULTI)
-
-  //       await SequelsMultiAuction.connect(fppOwner).bidWithMintPass(tokenId, 1, bidAmount(1))
-  //       await time.increase(time.duration.days(1))
-  //       await SequelsMultiAuction.connect(fppOwner).settleAuction(tokenId)
-
-  //       expect(await FPP.connect(fppOwner).passUses(1, 2)).to.equal(1)
-  //     })
-  //   })
-
-  //   describe('setMintPassRebateBps', () => {
-  //     it('should work', async () => {
-  //       expect(
-  //         await SequelsMultiAuction.connect(admin).mintPassRebateBps()
-  //       ).to.equal(1000)
-
-  //       await SequelsMultiAuction.connect(admin).setMintPassRebateBps(500)
-
-  //       expect(
-  //         await SequelsMultiAuction.connect(admin).mintPassRebateBps()
-  //       ).to.equal(500)
-  //     })
-
-  //     it('should revert if called by non admin', async () => {
-  //       await expectRevert(
-  //         SequelsMultiAuction.connect(bidder1).setMintPassRebateBps(500),
-  //         'Ownable: caller is not the owner'
-  //       )
-  //     })
-  //   })
-  // })
-// })

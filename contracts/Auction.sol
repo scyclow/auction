@@ -9,11 +9,14 @@
 ██   ██ ██    ██ ██         ██    ██ ██    ██ ██  ██ ██
 ██   ██  ██████   ██████    ██    ██  ██████  ██   ████
 
+TODO
+- auction off existing token
+- buy now price
 */
 
 
-pragma solidity ^0.8.17;
 
+pragma solidity ^0.8.17;
 
 
 interface IWETH {
@@ -204,14 +207,14 @@ contract MinterAuction is Ownable {
     Auction storage auction = auctionIdToAuction[auctionId];
 
     require(auction.duration > 0, 'Auction does not exist');
-    require(highestBid.timestamp == 0, 'Auction is active');
-    require(!auction.isSettled, 'Auction has settled');
+    require(!auction.isSettled, 'Auction is not active');
+    require(highestBid.timestamp == 0, 'Auction has started');
 
     auction.isSettled = true;
   }
 
   function settle(uint256 auctionId) external payable {
-    Auction memory auction = auctionIdToAuction[auctionId];
+    Auction storage auction = auctionIdToAuction[auctionId];
     Bid storage highestBid = auctionIdToHighestBid[auctionId];
 
     require(!auction.isSettled, 'Auction has already been settled');
@@ -244,6 +247,16 @@ contract MinterAuction is Ownable {
       block.timestamp < endTime
       || block.timestamp < highestBid.timestamp + auction.bidTimeExtension
     );
+  }
+
+  function auctionEndTime(uint256 auctionId) external view returns (uint256) {
+    Auction memory auction = auctionIdToAuction[auctionId];
+    Bid memory highestBid = auctionIdToHighestBid[auctionId];
+
+    uint256 naturalEndTime = auction.startTime + auction.duration;
+    uint256 bidderEndTime = highestBid.timestamp + auction.bidTimeExtension;
+
+    return naturalEndTime > bidderEndTime ? naturalEndTime : bidderEndTime;
   }
 
 

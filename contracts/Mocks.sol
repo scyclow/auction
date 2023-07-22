@@ -29,3 +29,9 @@ contract AllowListMock {
     balanceOf[addr] = balance;
   }
 }
+
+contract FaultyMinterMock {
+  function mint(address, uint256) external {
+    revert('Uh oh...');
+  }
+}

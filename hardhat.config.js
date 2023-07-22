@@ -16,10 +16,14 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      forking: {
-        url: `https://mainnet.infura.io/v3/${STUFF.INFURA_KEY}`,
-        blockNumber: 17694563,
-      },
+      // forking: {
+      //   url: `https://mainnet.infura.io/v3/${STUFF.INFURA_KEY}`,
+      //   blockNumber: 17694569,
+      // },
+      mining: {
+        auto: true,
+        interval: 1000
+      }
     },
 
     mumbai: {

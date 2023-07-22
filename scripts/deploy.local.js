@@ -1,15 +1,61 @@
+const ONE_DAY = 60 * 60 * 24
+const TEN_MINUTES = 60 * 10
+const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
+
 async function main() {
-  const [artist, collector1, collector2, collector3] = await ethers.getSigners()
-  console.log('Deploying base contract for artist addr:', artist.address)
+  const signers = await ethers.getSigners()
 
-  TerminallyOnlineFactory = await ethers.getContractFactory('TerminallyOnline', artist)
-  TerminallyOnline = await TerminallyOnlineFactory.deploy()
-  await TerminallyOnline.deployed()
+  admin = signers[0]
+  bidder1 = signers[1]
+  bidder2 = signers[2]
 
+  const MinterAuctionFactory = await ethers.getContractFactory('MinterAuction', admin)
+  MinterAuction = await MinterAuctionFactory.deploy()
+  await MinterAuction.deployed()
 
-  console.log(`TerminallyOnline:`, TerminallyOnline.address)
-  console.log(`Multisig:`, await TerminallyOnline.connect(artist).multisig())
-  console.log(`TokenURI:`, await TerminallyOnline.connect(artist).tokenURIContract())
+  const MinterMockFactory = await ethers.getContractFactory('MinterMock', admin)
+  MinterMock = await MinterMockFactory.deploy()
+  await MinterMock.deployed()
+
+  const RewardMinterMockFactory = await ethers.getContractFactory('RewardMinterMock', admin)
+  RewardMinterMock = await RewardMinterMockFactory.deploy()
+  await RewardMinterMock.deployed()
+
+  const AllowListMockFactory = await ethers.getContractFactory('AllowListMock', admin)
+  AllowListMock = await AllowListMockFactory.deploy()
+  await AllowListMock.deployed()
+
+  await MinterAuction.connect(admin).create(
+    ONE_DAY,
+    1000,
+    TEN_MINUTES,
+    '100000000000000000',
+    1,
+    admin.address,
+    MinterMock.address,
+    RewardMinterMock.address,
+    ZERO_ADDR,
+  )
+
+  for (let i = 0; i < 10; i++) {
+    await MinterAuction.connect(admin).create(
+      30,
+      1000,
+      12,
+      '100000000000000000',
+      1,
+      admin.address,
+      MinterMock.address,
+      RewardMinterMock.address,
+      ZERO_ADDR,
+    )
+  }
+
+  console.log((await MinterAuction.connect(admin).auctionIdToAuction(0)).minBid)
+
+  console.log(`MinterAuction:`, MinterAuction.address)
+  console.log(`MinterMock:`, MinterMock.address)
+  console.log('admin:', admin.address)
 }
 
 
