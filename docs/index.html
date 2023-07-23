@@ -138,6 +138,10 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       justify-content: center;
     }
 
+    #bidSectionLoadingMessage {
+      text-align: center;
+    }
+
     #activeBidSection {
       display: flex;
       justify-content: space-between;
@@ -147,21 +151,6 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       font-family: monospace;
     }
 
-    @media (max-width: 635px) {
-      #activeBidSection {
-        flex-direction: column-reverse;
-        max-width: 320px;
-        margin: auto;
-      }
-      #activeBidSection > * {
-        margin: 1em 0;
-        max-width: 320px;
-      }
-
-      .bidSection {
-        margin: 1.5em auto;
-      }
-    }
 
     #timeLeft {
       font-size: 3em;
@@ -197,14 +186,21 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
 
     .bidSection {
       margin: 3em 0;
-      /*border-bottom: 2px solid;*/
     }
 
-    ul {
+    ul#previousBidList {
       list-style-type: none;
       padding: 0;
       margin: 0;
     }
+
+    #answerContent li {
+      margin-left: 1em;
+      margin-bottom: 0.25em;
+      text-align: left;
+      font-size: 0.85em;
+    }
+
     .bidHistoryItem {
       margin: 1em 0;
       border-bottom: 1px dashed;
@@ -214,11 +210,81 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       font-family: monospace;
     }
 
+    #timeDiff {
+      font-size: 0.85em;
+      max-width: 225px;
+    }
+
+
+    @media (max-width: 635px) {
+      #activeBidSection {
+        flex-direction: column-reverse;
+        max-width: 320px;
+        margin: auto;
+      }
+      #activeBidSection > * {
+        margin: 1em 0;
+        max-width: 320px;
+      }
+
+      .bidSection {
+        margin: 1.5em auto;
+      }
+
+      h1 {
+        font-size: 1.5em;
+      }
+    }
+
     @media (max-width: 370px) {
       #connectedAs2, .address {
         font-size: 0.85em;
       }
+
+      #timeLeft {
+        font-size: 2em;
+      }
+
+      #highestBidAmount {
+        font-size: 1.5em;
+      }
+
+      #highestBidder {
+        font-size: 0.75em;
+      }
     }
+
+
+    #question {
+      color: blue;
+      text-decoration: underline;
+      cursor: pointer;
+      display: inline-block;
+    }
+
+    #answer {
+      padding: 0.5em;
+      border: 1px dashed;
+    }
+
+    #answerX {
+      font-family: monospace;
+      cursor: pointer;
+    }
+
+    .nightmode * {
+      color: #fff;
+    }
+    body.nightmode {
+      background: #000;
+    }
+    .nightmode input {
+      color: #000;
+    }
+    .nightmode a, .nightmode #question {
+      color: #00a7ff;
+    }
+
   </style>
 </head>
 
@@ -265,6 +331,7 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
           <section id="timeLeftSection" style="display: none;">
             <h3 class="label">TIME LEFT (ESTIMATED)</h3>
             <div id="timeLeft"></div>
+            <div id="timeDiff"></div>
           </section>
 
         </section>
@@ -273,6 +340,19 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
           <div id="bidSectionContent">
             <input id="newBidAmount" placeholder="ETH" type="number">
             <button id="submitBid">Bid</button>
+          </div>
+          <div id="biddingHelp">
+            <div class="center" style="margin-top: 0.5em;">
+              <div id="question">???</div>
+              <div id="answer" style="display: none">
+                <div style="display: flex; justify-content: end;">
+                  <div id="answerX" style="padding: 0.25em">X</div>
+                </div>
+                <div id="answerContent">
+
+                </div>
+              </div>
+            </div>
           </div>
           <div id="bidSectionError" class="error"></div>
           <div id="bidSectionLoading" style="display: none;">
@@ -321,7 +401,7 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
 <script src="./min.ethers.js"></script>
 
 <script type="text/javascript">
-  const AUCTION_ID = 0
+  const AUCTION_ID = 7
 
   const provider = new Web3Provider()
   mountComponents(
@@ -366,6 +446,7 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
   const $highestBidSection = $.id(document, 'highestBidSection')
   const $makeBidSection = $.id(document, 'makeBidSection')
   const $timeLeft = $.id(document, 'timeLeft')
+  const $timeDiff = $.id(document, 'timeDiff')
   const $bidSectionContent = $.id(document, 'bidSectionContent')
   const $bidSectionError = $.id(document, 'bidSectionError')
   const $bidSectionLoadingMessage = $.id(document, 'bidSectionLoadingMessage')
@@ -383,6 +464,13 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
   const $settlementSectionLoading = $.id(document, 'settlementSectionLoading')
   const $settlementSectionLoadingMessage = $.id(document, 'settlementSectionLoadingMessage')
 
+  const $question = $.id(document, 'question')
+  const $answer = $.id(document, 'answer')
+  const $answerX = $.id(document, 'answerX')
+  const $answerContent = $.id(document, 'answerContent')
+
+  const $biddingHelp = $.id(document, 'biddingHelp')
+
   let stopActiveCountdownInterval = () => {}, setMinBid
   async function updateBidInfo(signer, minterAuction) {
     const bidRequest = rawMinterAuction.queryFilter(bidFilter).then(rawBids =>
@@ -399,6 +487,7 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       )
     )
 
+    const signerAddr = await signer.getAddress()
     const [
       highestBid,
       auction,
@@ -407,25 +496,27 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       blockNumber,
       formattedAddr,
       unsortedBidsMade,
-      connectedBalance
+      connectedBalance,
     ] = await Promise.all([
       minterAuction.auctionIdToHighestBid(AUCTION_ID),
       minterAuction.auctionIdToAuction(AUCTION_ID),
       minterAuction.auctionEndTime(AUCTION_ID),
       minterAuction.isActive(AUCTION_ID),
       provider.provider.getBlockNumber(),
-      formatAddr(signer, provider),
+      formatAddr(signerAddr, provider),
       bidRequest,
-      provider.getETHBalance(signer)
+      provider.getETHBalance(signerAddr),
     ])
 
     const hasBid = !!bnToN(highestBid.timestamp)
+    const blockTimestamp = (await provider.provider.getBlock(blockNumber)).timestamp
+    const timeDiff = Date.now() - blockTimestamp*1000
 
-    $lastUpdated.innerHTML = `${new Date} [Block: ${blockNumber}]`
+    $lastUpdated.innerHTML = `Local timestamp: ${new Date()} <br>Block timestamp: ${new Date(blockTimestamp*1000)}<br>[Block: ${blockNumber}]`
     if (isENS(formattedAddr)) {
       $connectedAs1.innerHTML = formattedAddr
     }
-    $connectedAs2.innerHTML = `<a href="https://etherscan.io/address/${signer}" target="_blank" class="address">${signer}</a>`
+    $connectedAs2.innerHTML = `<a href="https://etherscan.io/address/${signerAddr}" target="_blank" class="address">${signerAddr}</a>`
     $connectedBalance.innerHTML = `Balance: ${ethVal(connectedBalance)} ETH`
 
     const bidsMade = unsortedBidsMade.sort((a,b) => b.timestamp - a.timestamp)
@@ -443,14 +534,16 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       unhide($highestBidSection)
       unhide($activeBidSection)
       unhide($bidHistory)
-      $newBidAmount.value = formatMinBid(ethVal(highestBid.amount) * (1 + auction.bidIncreaseBps/10000))
+      if (!setMinBid) $newBidAmount.value = formatMinBid(ethVal(highestBid.amount) * (1 + auction.bidIncreaseBps/10000))
 
       $highestBidAmount.innerHTML = ethVal(highestBid.amount) + ' ETH'
       $highestBidder.innerHTML = `<a href="https://etherscan.io/address/${highestBid.bidder}" target="_blank" class="address">${await formatAddr(highestBid.bidder, provider, false)}</a>`
 
 
       stopActiveCountdownInterval()
-      stopActiveCountdownInterval = triggerTimer(bnToN(auctionEndTime)*1000 - Date.now(), $timeLeft)
+      const timeLeft = bnToN(auctionEndTime)*1000 - Date.now()
+      stopActiveCountdownInterval = triggerTimer(timeLeft, $timeLeft)
+      if (timeLeft < 120000) $timeDiff.innerHTML = `*Your web browser is <br>~${Math.abs(timeDiff/1000)} seconds ${timeDiff < 0 ? 'behind' : 'ahead of'} <br>the blockchain`
 
 
     } else if (!isActive && !auction.isSettled) {
@@ -484,30 +577,60 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
     setMinBid = true
 
     if (bidsMade.length) {
-      $previousBidList.innerHTML = bidsMade.map(bid => `
-        <li class="bidHistoryItem">
-          <div style="display: flex; justify-content: space-between">
-            <div>BID: ${bid.amount.toFixed(4)} ETH</div>
-            <div>
-              <a href="https://etherscan.io/address/${bid.bidder}" target="_blank" class="address">${bid.bidderDisplay}</a>
+      $previousBidList.innerHTML = bidsMade.map(bid => {
+        const bidAmount = Number(bid.amount.toFixed(14))
+        const bidAmountPretty = String(bidAmount).includes('.') ? bidAmount : bidAmount.toFixed(1)
+        return `
+          <li class="bidHistoryItem">
+            <div style="display: flex; justify-content: space-between">
+              <div>BID: ${bidAmountPretty} ETH</div>
+              <div>
+                <a href="https://etherscan.io/address/${bid.bidder}" target="_blank" class="address">${bid.bidderDisplay}</a>
+              </div>
             </div>
-          </div>
-          <div>${new Date(bid.timestamp * 1000)}</div>
-        </li>
-      `).join('')
+            <div>${new Date(bid.timestamp * 1000)}</div>
+          </li>
+        `
+      }).join('')
     }
+
+
+    const formatTime = (amt, measurement) => Math.round(amt*100)/100 + ' ' + (amt === 1 ? measurement : measurement + 's')
+    const formatDuration = duration =>
+      duration < 60 ? formatTime(duration, 'second') :
+      duration < 3600 ? formatTime(duration / 60, 'minute') :
+      duration <= 86400 ? formatTime(duration / 3600, 'hour') :
+      formatTime(duration / 86400, 'day')
+
+
+    const auctionLength = formatDuration(auction.duration)
+    const reservePrice = ethVal(auction.minBid)
+    const bidExtension = formatDuration(bnToN(auction.bidTimeExtension))
+    const bidIncrease = bnToN(auction.bidIncreaseBps) / 100 + '%'
+    $answerContent.innerHTML = `
+      <ul>
+        <li>This auction has ${reservePrice ? `a reserve price of ${reservePrice} ETH` : 'no reserve price'}.</li>
+        <li>Once the first bid is made, the auction will last ${auctionLength}.</li>
+        <li>All bids made in the final ${bidExtension} will extend the auction.</li>
+        <li>All bids must be ${bidIncrease} higher than the previous bid.</li>
+        <li>Bids cannot be withdrawn once they are made.</li>
+        <li>All bids must be made in ETH.</li>
+      </ul>
+    `
+
 
   }
 
-  provider.onConnect(async signer => {
+  provider.onConnect(async () => {
     const minterAuction = await provider.contract(AUCTION, auctionABI)
     const rawMinterAuction = provider.rawContract(AUCTION, auctionABI)
 
-    setRunInterval(() => updateBidInfo(signer, minterAuction), 3000)
+    setRunInterval(() => updateBidInfo(provider.signer, minterAuction), 3000)
 
 
     $submitBid.onclick = async () => {
       hide($bidSectionContent)
+      hide($biddingHelp)
       unhide($bidSectionLoading)
       $bidSectionError.innerHTML = ''
       $bidSectionLoadingMessage.innerHTML = 'Submitting...'
@@ -531,9 +654,10 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
 
         const txReciept1 = await tx.wait(1)
 
-        updateBidInfo(signer, minterAuction)
+        updateBidInfo(provider.signer, minterAuction)
 
         unhide($bidSectionContent)
+        unhide($biddingHelp)
         hide($bidSectionLoading)
 
       } catch (e) {
@@ -561,7 +685,7 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
 
         const txReciept1 = await tx.wait(1)
 
-        updateBidInfo(signer, minterAuction)
+        updateBidInfo(provider.signer, minterAuction)
 
         unhide($settlementSectionContent)
         hide($settlementSectionLoading)
@@ -577,6 +701,24 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       }
     }
   })
+
+
+  let showingAnswer = false
+  $question.onclick = () => {
+    showingAnswer = true
+    hide($question)
+    unhide($answer)
+  }
+
+  $answerX.onclick = () => {
+    showingAnswer = false
+    unhide($question)
+    hide($answer)
+  }
+
+
+
+
 
   function formatMinBid(amt) {
     return Math.ceil(amt * 1000) / 1000
@@ -651,5 +793,12 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
     }, 1000)
   }
 
+</script>
+
+
+
+<script type="text/javascript">
+  var hours = new Date().getHours();
+  if (hours <= 5 || hours >= 22) document.body.className = 'nightmode';
 </script>
 </html>

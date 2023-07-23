@@ -12,7 +12,6 @@ class Web3Provider {
       console.log('web3')
       try {
         this.provider = new ethers.providers.Web3Provider(window.ethereum, 'any')
-        this.signer = this.provider.getSigner()
         this.isEthBrowser = true
       } catch (e) {
         console.error(e)
@@ -36,6 +35,10 @@ class Web3Provider {
 
   connect() {
     this.onConnectCbs.forEach(async cb => cb(await this.isConnected()))
+  }
+
+  get signer() {
+    return this.provider.getSigner()
   }
 
   async isConnected() {
