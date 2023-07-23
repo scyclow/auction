@@ -411,7 +411,7 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
 
   const network = 'local'
 
-  const AUCTION = {
+  const STEVIEP_AUCTION = {
     // local: '0x46d4674578a2daBbD0CEAB0500c6c7867999db34'
     local: '0x5FbDB2315678afecb367f032d93F642f64180aa3'
   }[network]
@@ -430,9 +430,9 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
     'function settle(uint256 auctionId) external payable',
   ]
 
-  const rawMinterAuction = provider.rawContract(AUCTION, auctionABI)
+  const rawSteviepAuction = provider.rawContract(STEVIEP_AUCTION, auctionABI)
 
-  const bidFilter = rawMinterAuction.filters.BidMade(AUCTION_ID)
+  const bidFilter = rawSteviepAuction.filters.BidMade(AUCTION_ID)
 
 
   const $lastUpdated = $.id(document, 'lastUpdated')
@@ -472,8 +472,8 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
   const $biddingHelp = $.id(document, 'biddingHelp')
 
   let stopActiveCountdownInterval = () => {}, setMinBid
-  async function updateBidInfo(signer, minterAuction) {
-    const bidRequest = rawMinterAuction.queryFilter(bidFilter).then(rawBids =>
+  async function updateBidInfo(signer, steviepAuction) {
+    const bidRequest = rawSteviepAuction.queryFilter(bidFilter).then(rawBids =>
       Promise.all(
         rawBids.map(
           async e => ({
@@ -498,10 +498,10 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       unsortedBidsMade,
       connectedBalance,
     ] = await Promise.all([
-      minterAuction.auctionIdToHighestBid(AUCTION_ID),
-      minterAuction.auctionIdToAuction(AUCTION_ID),
-      minterAuction.auctionEndTime(AUCTION_ID),
-      minterAuction.isActive(AUCTION_ID),
+      steviepAuction.auctionIdToHighestBid(AUCTION_ID),
+      steviepAuction.auctionIdToAuction(AUCTION_ID),
+      steviepAuction.auctionEndTime(AUCTION_ID),
+      steviepAuction.isActive(AUCTION_ID),
       provider.provider.getBlockNumber(),
       formatAddr(signerAddr, provider),
       bidRequest,
@@ -622,10 +622,10 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
   }
 
   provider.onConnect(async () => {
-    const minterAuction = await provider.contract(AUCTION, auctionABI)
-    const rawMinterAuction = provider.rawContract(AUCTION, auctionABI)
+    const steviepAuction = await provider.contract(STEVIEP_AUCTION, auctionABI)
+    const rawSteviepAuction = provider.rawContract(STEVIEP_AUCTION, auctionABI)
 
-    setRunInterval(() => updateBidInfo(provider.signer, minterAuction), 3000)
+    setRunInterval(() => updateBidInfo(provider.signer, steviepAuction), 3000)
 
 
     $submitBid.onclick = async () => {
@@ -637,8 +637,8 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
 
       try {
         const [highestBid, auction] = await Promise.all([
-          minterAuction.auctionIdToHighestBid(AUCTION_ID),
-          minterAuction.auctionIdToAuction(AUCTION_ID),
+          steviepAuction.auctionIdToHighestBid(AUCTION_ID),
+          steviepAuction.auctionIdToAuction(AUCTION_ID),
         ])
 
         const minBid = highestBid.amount
@@ -648,13 +648,13 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
         if ($newBidAmount.value < minBid) {
           throw new Error(`Bid must be at least ${minBid} ETH`)
         }
-        const tx = await rawMinterAuction.connect(provider.signer).bid(AUCTION_ID, ethValue($newBidAmount.value))
+        const tx = await rawSteviepAuction.connect(provider.signer).bid(AUCTION_ID, ethValue($newBidAmount.value))
 
         $bidSectionLoadingMessage.innerHTML = `TX Pending. <a href="https://etherscan.io/tx/${tx.hash}" target="_blank">View on etherscan</a>`
 
         const txReciept1 = await tx.wait(1)
 
-        updateBidInfo(provider.signer, minterAuction)
+        updateBidInfo(provider.signer, steviepAuction)
 
         unhide($bidSectionContent)
         unhide($biddingHelp)
@@ -679,13 +679,13 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       $settlementSectionLoadingMessage.innerHTML = 'Submitting...'
 
       try {
-        const tx = await rawMinterAuction.connect(provider.signer).settle(AUCTION_ID)
+        const tx = await rawSteviepAuction.connect(provider.signer).settle(AUCTION_ID)
 
         $settlementSectionLoadingMessage.innerHTML = `TX Pending. <a href="https://etherscan.io/tx/${tx.hash}" target="_blank">View on etherscan</a>`
 
         const txReciept1 = await tx.wait(1)
 
-        updateBidInfo(provider.signer, minterAuction)
+        updateBidInfo(provider.signer, steviepAuction)
 
         unhide($settlementSectionContent)
         hide($settlementSectionLoading)

@@ -9,9 +9,9 @@ async function main() {
   bidder1 = signers[1]
   bidder2 = signers[2]
 
-  const MinterAuctionFactory = await ethers.getContractFactory('MinterAuction', admin)
-  MinterAuction = await MinterAuctionFactory.deploy()
-  await MinterAuction.deployed()
+  const SteviepAuctionFactory = await ethers.getContractFactory('SteviepAuctionV1', admin)
+  SteviepAuction = await SteviepAuctionFactory.deploy()
+  await SteviepAuction.deployed()
 
   const MinterMockFactory = await ethers.getContractFactory('MinterMock', admin)
   MinterMock = await MinterMockFactory.deploy()
@@ -25,7 +25,8 @@ async function main() {
   AllowListMock = await AllowListMockFactory.deploy()
   await AllowListMock.deployed()
 
-  await MinterAuction.connect(admin).create(
+  await SteviepAuction.connect(admin).create(
+    false,
     ONE_DAY,
     1000,
     TEN_MINUTES,
@@ -38,7 +39,8 @@ async function main() {
   )
 
   for (let i = 0; i < 10; i++) {
-    await MinterAuction.connect(admin).create(
+    await SteviepAuction.connect(admin).create(
+      false,
       30,
       1000,
       12,
@@ -51,9 +53,9 @@ async function main() {
     )
   }
 
-  console.log((await MinterAuction.connect(admin).auctionIdToAuction(0)).minBid)
+  console.log((await SteviepAuction.connect(admin).auctionIdToAuction(0)).minBid)
 
-  console.log(`MinterAuction:`, MinterAuction.address)
+  console.log(`SteviepAuction:`, SteviepAuction.address)
   console.log(`MinterMock:`, MinterMock.address)
   console.log('admin:', admin.address)
 }

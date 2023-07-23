@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-
+import "./Dependencies.sol";
 
 pragma solidity ^0.8.17;
 
 
 contract MinterMock {
-  mapping(address => uint256) public addrToTokenId;
+  mapping(uint256 => address) public ownerOf;
 
   function mint(address to, uint256 tokenId) external {
-    addrToTokenId[to] = tokenId;
+    ownerOf[tokenId] = to;
   }
 
 }
@@ -33,5 +33,13 @@ contract AllowListMock {
 contract FaultyMinterMock {
   function mint(address, uint256) external {
     revert('Uh oh...');
+  }
+}
+
+contract ExistingTokenMock is ERC721 {
+  constructor() ERC721('Existing Token Mock', 'Mock') {}
+
+  function mint(address to, uint256 tokenId) external {
+    _mint(to, tokenId);
   }
 }

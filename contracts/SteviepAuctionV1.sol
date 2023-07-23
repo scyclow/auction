@@ -10,7 +10,6 @@
 ██   ██  ██████   ██████    ██    ██  ██████  ██   ████
 
 TODO
-- auction off existing token
 - buy now price
 */
 
@@ -25,8 +24,9 @@ interface IWETH {
   function transfer(address to, uint256 value) external returns (bool);
 }
 
-interface Minter {
+interface TokenContract {
   function mint(address to, uint256 tokenId) external;
+  function safeTransferFrom(address from, address to, uint256 tokenId) external;
 }
 
 interface AllowList {
@@ -92,12 +92,13 @@ abstract contract Ownable {
   }
 }
 
-contract MinterAuction is Ownable {
+contract SteviepAuctionV1 is Ownable {
   IWETH public immutable weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
   uint256 public auctionCount;
 
   struct Auction {
+    bool tokenExists;
     uint256 duration;
     uint256 bidIncreaseBps;
     uint256 bidTimeExtension;
@@ -105,7 +106,7 @@ contract MinterAuction is Ownable {
     uint256 tokenId;
     uint256 startTime;
     address beneficiary;
-    Minter minterContract;
+    TokenContract tokenContract;
     RewardMinter rewardContract;
     AllowList allowListContract;
     bool isSettled;
@@ -127,29 +128,35 @@ contract MinterAuction is Ownable {
 
 
   function create(
+    bool tokenExists,
     uint256 duration,
     uint256 bidIncreaseBps,
     uint256 bidTimeExtension,
     uint256 minBid,
     uint256 tokenId,
     address beneficiary,
-    Minter minterContract,
+    TokenContract tokenContract,
     RewardMinter rewardContract,
     AllowList allowListContract
   ) external onlyOwner {
     require(duration > 0);
     require(bidIncreaseBps > 0);
-    require(address(minterContract) != address(0));
+    require(address(tokenContract) != address(0));
 
+    auctionIdToAuction[auctionCount].tokenExists = tokenExists;
     auctionIdToAuction[auctionCount].duration = duration;
     auctionIdToAuction[auctionCount].bidIncreaseBps = bidIncreaseBps;
     auctionIdToAuction[auctionCount].bidTimeExtension = bidTimeExtension;
     auctionIdToAuction[auctionCount].minBid = minBid;
     auctionIdToAuction[auctionCount].tokenId = tokenId;
     auctionIdToAuction[auctionCount].beneficiary = beneficiary;
-    auctionIdToAuction[auctionCount].minterContract = minterContract;
+    auctionIdToAuction[auctionCount].tokenContract = tokenContract;
     auctionIdToAuction[auctionCount].rewardContract = rewardContract;
     auctionIdToAuction[auctionCount].allowListContract = allowListContract;
+
+    if (tokenExists) {
+      tokenContract.safeTransferFrom(msg.sender, address(this), tokenId);
+    }
 
     auctionCount++;
   }
@@ -210,10 +217,14 @@ contract MinterAuction is Ownable {
     require(!auction.isSettled, 'Auction is not active');
     require(highestBid.timestamp == 0, 'Auction has started');
 
+    if (auction.tokenExists) {
+      auction.tokenContract.safeTransferFrom(address(this), msg.sender, auction.tokenId);
+    }
+
     auction.isSettled = true;
   }
 
-  function settle(uint256 auctionId) external payable {
+  function settle(uint256 auctionId) external {
     Auction storage auction = auctionIdToAuction[auctionId];
     Bid storage highestBid = auctionIdToHighestBid[auctionId];
 
@@ -224,10 +235,15 @@ contract MinterAuction is Ownable {
 
     emit Settled(auctionId, block.timestamp);
 
-    try auction.minterContract.mint(highestBid.bidder, auction.tokenId) {
+    if (auction.tokenExists) {
+      auction.tokenContract.safeTransferFrom(address(this), highestBid.bidder, auction.tokenId);
       payable(owner()).transfer(highestBid.amount);
-    } catch {
-      payable(highestBid.bidder).transfer(highestBid.amount);
+    } else {
+      try auction.tokenContract.mint(highestBid.bidder, auction.tokenId) {
+        payable(owner()).transfer(highestBid.amount);
+      } catch {
+        payable(highestBid.bidder).transfer(highestBid.amount);
+      }
     }
   }
 
@@ -277,6 +293,10 @@ contract MinterAuction is Ownable {
   function _safeTransferETH(address to, uint256 value) internal returns (bool) {
     (bool success, ) = to.call{ value: value, gas: 30_000 }(new bytes(0));
     return success;
+  }
+
+  function onERC721Received(address, address, uint256, bytes calldata) external pure returns(bytes4) {
+    return this.onERC721Received.selector;
   }
 }
 
