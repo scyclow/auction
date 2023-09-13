@@ -1,6 +1,6 @@
 const bnToN = bn => Number(bn.toString())
 const ethVal = n => Number(ethers.utils.formatEther(n))
-const truncateAddr = addr => addr.slice(0, 5) + '...' + addr.slice(-3)
+const truncateAddr = addr => addr.slice(0, 6) + '...' + addr.slice(-4)
 const toETH = amt => ethers.utils.parseEther(String(amt))
 const ethValue = amt => ({ value: toETH(amt) })
 
@@ -13,6 +13,9 @@ class Web3Provider {
       try {
         this.provider = new ethers.providers.Web3Provider(window.ethereum, 'any')
         this.isEthBrowser = true
+
+
+        ethereum.on('accountsChanged', () => this.connect())
       } catch (e) {
         console.error(e)
       }
@@ -33,8 +36,9 @@ class Web3Provider {
       })
   }
 
-  connect() {
-    this.onConnectCbs.forEach(async cb => cb(await this.isConnected()))
+  async connect() {
+    const addr = await this.isConnected()
+    this.onConnectCbs.forEach(async cb => cb(addr))
   }
 
   get signer() {

@@ -25,6 +25,10 @@ async function main() {
   AllowListMock = await AllowListMockFactory.deploy()
   await AllowListMock.deployed()
 
+  const UniswapV2MockFactory = await ethers.getContractFactory('UniswapV2Mock', admin)
+  UniswapV2Mock = await UniswapV2MockFactory.deploy()
+  await UniswapV2Mock.deployed()
+
   await SteviepAuction.connect(admin).create(
     false,
     ONE_DAY,
@@ -57,6 +61,7 @@ async function main() {
 
   console.log(`SteviepAuction:`, SteviepAuction.address)
   console.log(`MinterMock:`, MinterMock.address)
+  console.log(`UniswapV2Mock:`, UniswapV2Mock.address)
   console.log('admin:', admin.address)
 }
 

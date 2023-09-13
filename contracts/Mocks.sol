@@ -43,3 +43,13 @@ contract ExistingTokenMock is ERC721 {
     _mint(to, tokenId);
   }
 }
+
+contract UniswapV2Mock {
+  function getReserves() external view returns (uint112, uint112, uint32) {
+    return (
+      uint112(29954418357284),
+      uint112(15982938777635119725700),
+      uint32(block.timestamp)
+    );
+  }
+}

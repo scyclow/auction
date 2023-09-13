@@ -45,17 +45,20 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
     }
 
     header {
-      text-align: center;
-      border-bottom: 1px solid;
+      display: flex;
+      justify-content: flex-end;
       padding: 0.25em;
       margin-bottom: 1em;
+      max-width: 1500px;
+      margin: auto;
     }
 
-    main, footer {
+    .aboveFold, .lastUpdatedSection, footer {
       max-width: 600px;
       margin: auto;
       padding: 0 1em;
     }
+
 
     footer {
       padding-top: 1em;
@@ -77,42 +80,29 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       justify-content: center;
     }
 
-    #lastUpdated, #connectedAs1, #connectedAs2, #connectedAs2 a, #connectedBalance {
+    #connectedAs {
+      font-size: 1.25em;
+    }
+    #lastUpdated, #connectedAs, #connectedBalance {
       font-family: monospace;
     }
 
-    #connectedAs1 {
+    .connectionSection {
+      padding: 0.5em;
+    }
+
+    .connectButton {
+      font-size: 1em;
+      padding: 0.5em 1em;
+      cursor: pointer;
+    }
+
+    #connectedAs {
       text-overflow: ellipsis;
       overflow: hidden;
       max-width: 100%;
     }
 
-    #newBidAmount {
-      max-width: 130px;
-      border:  1px solid #000;
-      margin-right: 1em;
-    }
-
-    #newBidAmount, #submitBid {
-      font-size: 2em;
-      padding: 0.25em;
-      text-align: center;
-    }
-
-    #submitSettlement {
-      font-size: 2em;
-      padding: 0.25em 1em;
-      text-align: center;
-    }
-
-    #submitBid {
-      width: 100px;
-    }
-
-    #connectWalletSection button {
-      font-size: 2em;
-      padding: 0.25em 1em;
-    }
 
     button {
       cursor: pointer;
@@ -127,56 +117,8 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       color: #000;
     }
 
-    #settlementSectionContent {
-      display: flex;
-      justify-content: center;
-    }
 
 
-    #bidSectionContent {
-      display: flex;
-      justify-content: center;
-    }
-
-    #bidSectionLoadingMessage {
-      text-align: center;
-    }
-
-    #activeBidSection {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    #highestBidder, #highestBidder a {
-      font-family: monospace;
-    }
-
-
-    #timeLeft {
-      font-size: 3em;
-    }
-
-    #highestBidAmount {
-      font-size: 2em;
-    }
-
-    #highestBidder {
-      font-size: 1em;
-    }
-
-    .imgContainer {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 4em;
-    }
-    .imgContainer img {
-      box-shadow: 1px 1px 8px black;
-      max-height: 75vh;
-      max-width: 100%;
-      width: inherit;
-      height: inherit;
-    }
 
     .label {
       text-transform: uppercase;
@@ -184,52 +126,10 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       font-weight: bold;
     }
 
-    .bidSection {
-      margin: 3em 0;
-    }
-
-    ul#previousBidList {
-      list-style-type: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    #answerContent li {
-      margin-left: 1em;
-      margin-bottom: 0.25em;
-      text-align: left;
-      font-size: 0.85em;
-    }
-
-    .bidHistoryItem {
-      margin: 1em 0;
-      border-bottom: 1px dashed;
-      padding-bottom: 0.5em;
-    }
-    .bidHistoryItem * {
-      font-family: monospace;
-    }
-
-    #timeDiff {
-      font-size: 0.85em;
-      max-width: 225px;
-    }
 
 
     @media (max-width: 635px) {
-      #activeBidSection {
-        flex-direction: column-reverse;
-        max-width: 320px;
-        margin: auto;
-      }
-      #activeBidSection > * {
-        margin: 1em 0;
-        max-width: 320px;
-      }
 
-      .bidSection {
-        margin: 1.5em auto;
-      }
 
       h1 {
         font-size: 1.5em;
@@ -237,40 +137,12 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
     }
 
     @media (max-width: 370px) {
-      #connectedAs2, .address {
+      .address {
         font-size: 0.85em;
       }
-
-      #timeLeft {
-        font-size: 2em;
-      }
-
-      #highestBidAmount {
-        font-size: 1.5em;
-      }
-
-      #highestBidder {
-        font-size: 0.75em;
-      }
     }
 
 
-    #question {
-      color: blue;
-      text-decoration: underline;
-      cursor: pointer;
-      display: inline-block;
-    }
-
-    #answer {
-      padding: 0.5em;
-      border: 1px dashed;
-    }
-
-    #answerX {
-      font-family: monospace;
-      cursor: pointer;
-    }
 
     .nightmode * {
       color: #fff;
@@ -285,103 +157,107 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       color: #00a7ff;
     }
 
+
+    .grid {
+      margin: auto;
+      padding: 1em;
+      max-width: 1500px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      column-gap: 1vw;
+      row-gap: 1.5vw;
+    }
+
+    .grid img {
+      width: 100%;
+    }
+
+    @media (max-width: 1100px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+        max-width: 1000px;
+      }
+    }
+
+
+    @media (max-width: 500px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    img {
+      border: 1px solid;
+    }
+
+    .infoCard {
+      background: #fff;
+      display: inline-block;
+      transform: translate(1px, calc(-100% - 1px));
+      padding: 0.5em;
+      opacity: 0.7;
+    }
+
+    .infoCard {
+      color: #000;
+    }
+
+    .nightmode .infoCard {
+      background: #000;
+    }
+    .nightmode .infoCard {
+      color: #fff;
+    }
+
+    .auctionInfo {
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+
+
   </style>
 </head>
 
 <body>
-  <header>Auction</header>
-  <main>
-    <div class="imgContainer">
-      <img src="https://plottables-flex-mainnet.s3.amazonaws.com/213.png">
-    </div>
-
-    <h1>Instructions for Defacement #213</h1>
-
-
-    <connect-wallet id="wallet-connect">
-      <section slot="noWeb3">
-        <h2 class="error center">Please visit this website in a web3-connected browser</h2>
-      </section>
-
+  <header>
+    <connect-wallet id="wallet-connect" class="connectionSection">
       <section slot="notConnected">
-        <section id="connectWalletSection" class="bidSection">
-          <connect-button>
-            <button slot="button">Connect Wallet</button>
-            <div slot="loading">Loading...</div>
-            <div slot="error" class="error"></div>
-          </connect-button>
-        </section>
+        <connect-button>
+          <button slot="button" class="connectButton">Connect Wallet</button>
+          <div slot="loading">Loading...</div>
+          <div slot="error" class="error"></div>
+        </connect-button>
       </section>
+
 
       <section slot="connected">
-        <section class="bidSection">
-          <h3 class="label">CONNECTED AS:</h3>
-          <div id="connectedAs1"></div>
-          <div id="connectedAs2"></div>
+        <section>
+          <h3 class="label">CONNECTED AS: <span id="connectedAs"></span></h3>
           <div id="connectedBalance"></div>
-        </section>
-
-        <section id="activeBidSection" class="bidSection" style="display: none;">
-          <section id="highestBidSection" style="display: none;">
-            <div class="label" id="highestBidLabel">HIGHEST BID</div>
-            <div id="highestBidAmount"></div>
-            <div id="highestBidder"></div>
-          </section>
-
-          <section id="timeLeftSection" style="display: none;">
-            <h3 class="label">TIME LEFT (ESTIMATED)</h3>
-            <div id="timeLeft"></div>
-            <div id="timeDiff"></div>
-          </section>
-
-        </section>
-
-        <section id="makeBidSection" class="bidSection" style="display: none;">
-          <div id="bidSectionContent">
-            <input id="newBidAmount" placeholder="ETH" type="number">
-            <button id="submitBid">Bid</button>
-          </div>
-          <div id="biddingHelp">
-            <div class="center" style="margin-top: 0.5em;">
-              <div id="question">???</div>
-              <div id="answer" style="display: none">
-                <div style="display: flex; justify-content: end;">
-                  <div id="answerX" style="padding: 0.25em">X</div>
-                </div>
-                <div id="answerContent">
-
-                </div>
-              </div>
-            </div>
-          </div>
-          <div id="bidSectionError" class="error"></div>
-          <div id="bidSectionLoading" style="display: none;">
-            <div id="bidSectionLoadingMessage"></div>
-          </div>
-        </section>
-
-        <section id="settlementSection" class="bidSection" style="display: none;">
-          <div id="settlementSectionContent">
-            <button id="submitSettlement">Settle</button>
-          </div>
-          <div id="settlementSectionError" class="error"></div>
-          <div id="settlementSectionLoading" style="display: none;">
-            <div id="settlementSectionLoadingMessage"></div>
-          </div>
         </section>
       </section>
     </connect-wallet>
+  </header>
 
-    <div>Instructions for Defacement is a generative art project developed for release on plottables.io, in which NFTs of unique pen plotter instructions are created upon mint. Each Instruction, which is represented by an SVG, is designed to be interpreted by modern pen plotting software and drawn on an area equal to 5.8125" x 2.34252". All instructions that cannot be executed by a pen plotter are designed to be performed manually. Defacing US currency is a federal crime, and may be punishable with up to six months imprisonment in addition to fines. Neither the Artist nor Plottables LLC condone defacing, mutilating, cutting, disfiguring, perforating, or otherwise damaging US currency. By purchasing an Instruction token the collector implicitly assumes full legal responsibility for the defacement of currency in their possession, and agrees to hold the Artist nor Plottables LLC harmless from all claims, losses, liabilities, public prosecutions, costs, and costs associated with this project. All Instructions exist simply as and artistic exercise, and collectors are strictly discouraged from executing said Instructions using the following tools: Axidraw pen plotters, fine-point pens (ex. Micron, LePen, Stabilo), felt tip and highlighter pens (ex. Sharpie), scissors, and lighters. The token thumbnail represents a simulation of what this may look like if executed on the pictorial area of the United States one-dollar bill. As a token of gratitude, each collector is entitled to a $1.00 rebate, issued in the form of a crisp bank note, when a request is made to the Artist in person. This project was a 48 hour open edition from 11/11/22 - 11/13/22</div>
+  <main>
+    <div class="aboveFold">
+      <h1>COLD HARD CASH</h1>
+      <p></p>
+    </div>
+
+
+
+    <section id="grid" class="grid">
+
+
+    </section>
+
+
 
     <connect-wallet id="wallet-connect">
-      <section slot="connected">
-        <section id="bidHistory" class="bidSection" style="display: none;">
-          <h3 class="label">Previous Bids</h3>
-          <ul id="previousBidList"></ul>
-        </section>
+      <section slot="connected" class="center" style="text-align: left;">
 
-        <section class="bidSection">
+        <section class="bidSection lastUpdatedSection">
           <h3 class="label">DATA LAST UPDATED:</h3>
           <div id="lastUpdated"></div>
         </section>
@@ -401,7 +277,42 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
 <script src="./min.ethers.js"></script>
 
 <script type="text/javascript">
-  const AUCTION_ID = 7
+
+  const testImg = 'https://i.seadn.io/gae/7KfwmOBgNIhMvfu7gADfHMWBq2h0qGMtoK_GXa0m-s8gO5_8d22IKbwbXGRzAt_gZrFGr_XJSjEjD0XL3KjOztqlp47Hj2Xuk8Zl?auto=format&dpr=1&w=1000'
+
+    // - In the throws of creativity
+    // - talking to chicks
+    // - hanging with the homies
+    // - traveling the world
+    // - day dreaming
+    // - killing time
+    // - listening to tunes
+    // - doing taxes
+    // - doom scrolling
+    // - reading,
+    // - writing
+    // - having an existential meltdown
+    // - getting ready for a date
+    // - getting my life together
+  const auctions = [
+    { title: 'In the Throws of Creativity', auctionId: 0, url: './auction', img: testImg },
+    { title: 'Hanging With the homies', auctionId: 1, url: './auction', img: testImg },
+    { title: 'Talking to Chicks', auctionId: 2, url: './auction', img: testImg },
+    { title: 'Traveling the World', auctionId: 3, url: './auction', img: testImg },
+    { title: 'Day Dreaming', auctionId: 4, url: './auction', img: testImg },
+    { title: 'Killing Time', auctionId: 5, url: './auction', img: testImg },
+    { title: 'Listening to Tunes', auctionId: 6, url: './auction', img: testImg },
+    { title: 'Making Money', auctionId: 7, url: './auction', img: testImg },
+    { title: 'Doom Scrolling', auctionId: 8, url: './auction', img: testImg },
+    { title: 'Reading', auctionId: 9, url: './auction', img: testImg },
+    { title: 'Writing', auctionId: 10, url: './auction', img: testImg },
+    { title: 'Having an Existential Meltdown', auctionId: 11, url: './auction', img: testImg },
+  ]
+
+
+
+
+
 
   const provider = new Web3Provider()
   mountComponents(
@@ -412,12 +323,16 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
   const network = 'local'
 
   const STEVIEP_AUCTION = {
-    // local: '0x46d4674578a2daBbD0CEAB0500c6c7867999db34'
     local: '0x5FbDB2315678afecb367f032d93F642f64180aa3'
   }[network]
 
+  const UNISWAP_V2 = {
+    local: '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9',
+    mainnet: '0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc'
+  }[network]
 
-  const auctionStruct = `(uint256 duration, uint256 bidIncreaseBps, uint256 bidTimeExtension, uint256 minBid, uint256 tokenId, uint256 startTime, address beneficiary, address minterContract, address rewardContract, address allowListContract, bool isSettled)`
+
+  const auctionStruct = `(bool tokenExists, uint256 duration, uint256 bidIncreaseBps, uint256 bidTimeExtension, uint256 minBid, uint256 tokenId, uint256 startTime, address beneficiary, address minterContract, address rewardContract, address allowListContract, bool isSettled)`
 
   const auctionABI = [
     'event BidMade(uint256 indexed auctionId, address indexed bidder, uint256 amount, uint256 timestamp)',
@@ -430,292 +345,143 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
     'function settle(uint256 auctionId) external payable',
   ]
 
+  const uniswapV2ABI = [
+    'function getReserves() external view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast)'
+  ]
+
   const rawSteviepAuction = provider.rawContract(STEVIEP_AUCTION, auctionABI)
 
-  const bidFilter = rawSteviepAuction.filters.BidMade(AUCTION_ID)
 
 
-  const $lastUpdated = $.id(document, 'lastUpdated')
-  const $connectedAs1 = $.id(document, 'connectedAs1')
-  const $connectedAs2 = $.id(document, 'connectedAs2')
-  const $connectedBalance = $.id(document, 'connectedBalance')
-  const $submitBid = $.id(document, 'submitBid')
-  const $newBidAmount = $.id(document, 'newBidAmount')
-  const $timeLeftSection = $.id(document, 'timeLeftSection')
-  const $activeBidSection = $.id(document, 'activeBidSection')
-  const $highestBidSection = $.id(document, 'highestBidSection')
-  const $makeBidSection = $.id(document, 'makeBidSection')
-  const $timeLeft = $.id(document, 'timeLeft')
-  const $timeDiff = $.id(document, 'timeDiff')
-  const $bidSectionContent = $.id(document, 'bidSectionContent')
-  const $bidSectionError = $.id(document, 'bidSectionError')
-  const $bidSectionLoadingMessage = $.id(document, 'bidSectionLoadingMessage')
-  const $bidSectionLoading = $.id(document, 'bidSectionLoading')
-  const $highestBidAmount = $.id(document, 'highestBidAmount')
-  const $highestBidder = $.id(document, 'highestBidder')
-  const $bidHistory = $.id(document, 'bidHistory')
-  const $previousBidList = $.id(document, 'previousBidList')
-  const $highestBidLabel = $.id(document, 'highestBidLabel')
 
-  const $settlementSection = $.id(document, 'settlementSection')
-  const $settlementSectionContent = $.id(document, 'settlementSectionContent')
-  const $submitSettlement = $.id(document, 'submitSettlement')
-  const $settlementSectionError = $.id(document, 'settlementSectionError')
-  const $settlementSectionLoading = $.id(document, 'settlementSectionLoading')
-  const $settlementSectionLoadingMessage = $.id(document, 'settlementSectionLoadingMessage')
 
-  const $question = $.id(document, 'question')
-  const $answer = $.id(document, 'answer')
-  const $answerX = $.id(document, 'answerX')
-  const $answerContent = $.id(document, 'answerContent')
 
-  const $biddingHelp = $.id(document, 'biddingHelp')
 
-  let stopActiveCountdownInterval = () => {}, setMinBid
+
+
+
+  const $grid = $.id('grid')
+  const $lastUpdated = $.id('lastUpdated')
+  const $connectedAs = $.id('connectedAs')
+  const $connectedBalance = $.id('connectedBalance')
+
+
+
+
+  $grid.innerHTML = auctions.map(a => `
+    <div>
+      <a href="${a.url}">
+        <img src="${a.img}">
+        <div style="height: 0">
+          <div class="infoCard">
+            <h3>${a.title}</h3>
+            <h3 class="auctionInfo" id="timeLeft-${a.auctionId}"></h3>
+            <h3 class="auctionInfo" id="highestBid-${a.auctionId}"></h3>
+          </div>
+        </div>
+      </a>
+    </div>
+  `).join('')
+
+
+
+
+
+  const activeCountdownIntervals = {}
+
   async function updateBidInfo(signer, steviepAuction) {
-    const bidRequest = rawSteviepAuction.queryFilter(bidFilter).then(rawBids =>
-      Promise.all(
-        rawBids.map(
-          async e => ({
-            bidder: e.args.bidder,
-            bidderDisplay: await formatAddr(e.args.bidder),
-            amount: ethVal(e.args.amount),
-            auctionId: bnToN(e.args.auctionId),
-            timestamp: bnToN(e.args.timestamp),
-          })
-        )
-      )
-    )
 
     const signerAddr = await signer.getAddress()
+
     const [
-      highestBid,
-      auction,
-      auctionEndTime,
-      isActive,
       blockNumber,
       formattedAddr,
-      unsortedBidsMade,
       connectedBalance,
+      ethUsd
     ] = await Promise.all([
-      steviepAuction.auctionIdToHighestBid(AUCTION_ID),
-      steviepAuction.auctionIdToAuction(AUCTION_ID),
-      steviepAuction.auctionEndTime(AUCTION_ID),
-      steviepAuction.isActive(AUCTION_ID),
       provider.provider.getBlockNumber(),
       formatAddr(signerAddr, provider),
-      bidRequest,
       provider.getETHBalance(signerAddr),
     ])
 
-    const hasBid = !!bnToN(highestBid.timestamp)
+
     const blockTimestamp = (await provider.provider.getBlock(blockNumber)).timestamp
     const timeDiff = Date.now() - blockTimestamp*1000
 
+
+    auctions.forEach(async a => {
+      const [
+        highestBid,
+        auction,
+        auctionEndTime,
+        isActive,
+      ] = await Promise.all([
+        steviepAuction.auctionIdToHighestBid(a.auctionId),
+        steviepAuction.auctionIdToAuction(a.auctionId),
+        steviepAuction.auctionEndTime(a.auctionId),
+        steviepAuction.isActive(a.auctionId),
+      ])
+
+      const reservePrice = ethVal(auction.minBid)
+      const hasBid = !!bnToN(highestBid.timestamp)
+      const bidAmount = ethVal(highestBid.amount)
+
+
+      if (!bidAmount) {
+        $.id(`highestBid-${a.auctionId}`).innerHTML = `Reserve: ${reservePrice} ETH`
+      } else if (isActive) {
+        $.id(`highestBid-${a.auctionId}`).innerHTML = `Highest Bid: ${bidAmount} ETH`
+
+
+        const timeLeft = bnToN(auctionEndTime)*1000 - Date.now()
+
+        if (activeCountdownIntervals[a.auctionId]) activeCountdownIntervals[a.auctionId]()
+        activeCountdownIntervals[a.auctionId] = triggerTimer(timeLeft, $.id(`timeLeft-${a.auctionId}`))
+
+        // show highest bid, countdown
+      } else {
+        $.id(`highestBid-${a.auctionId}`).innerHTML = `Sold for: ${bidAmount} ETH`
+        // show winning info
+      }
+    })
+
+
+
+
+
+
+
+
+
+
+
     $lastUpdated.innerHTML = `Local timestamp: ${new Date()} <br>Block timestamp: ${new Date(blockTimestamp*1000)}<br>[Block: ${blockNumber}]`
-    if (isENS(formattedAddr)) {
-      $connectedAs1.innerHTML = formattedAddr
-    }
-    $connectedAs2.innerHTML = `<a href="https://etherscan.io/address/${signerAddr}" target="_blank" class="address">${signerAddr}</a>`
+
+    $connectedAs.innerHTML = `<a href="https://etherscan.io/address/${signerAddr}" target="_blank" class="address">${
+      isENS(formattedAddr) ? formattedAddr : await formatAddr(signerAddr, provider)
+    }</a>`
     $connectedBalance.innerHTML = `Balance: ${ethVal(connectedBalance)} ETH`
-
-    const bidsMade = unsortedBidsMade.sort((a,b) => b.timestamp - a.timestamp)
-
-
-    if (!hasBid) {
-      hide($bidHistory)
-      unhide($makeBidSection)
-
-      if (!setMinBid) $newBidAmount.value = formatMinBid(ethVal(auction.minBid))
-
-    } else if (isActive) {
-      unhide($makeBidSection)
-      unhide($timeLeftSection)
-      unhide($highestBidSection)
-      unhide($activeBidSection)
-      unhide($bidHistory)
-      if (!setMinBid) $newBidAmount.value = formatMinBid(ethVal(highestBid.amount) * (1 + auction.bidIncreaseBps/10000))
-
-      $highestBidAmount.innerHTML = ethVal(highestBid.amount) + ' ETH'
-      $highestBidder.innerHTML = `<a href="https://etherscan.io/address/${highestBid.bidder}" target="_blank" class="address">${await formatAddr(highestBid.bidder, provider, false)}</a>`
-
-
-      stopActiveCountdownInterval()
-      const timeLeft = bnToN(auctionEndTime)*1000 - Date.now()
-      stopActiveCountdownInterval = triggerTimer(timeLeft, $timeLeft)
-      if (timeLeft < 120000) $timeDiff.innerHTML = `*Your web browser is <br>~${Math.abs(timeDiff/1000)} seconds ${timeDiff < 0 ? 'behind' : 'ahead of'} <br>the blockchain`
-
-
-    } else if (!isActive && !auction.isSettled) {
-      hide($makeBidSection)
-      hide($timeLeftSection)
-      unhide($highestBidSection)
-      unhide($settlementSection)
-      unhide($activeBidSection)
-      unhide($bidHistory)
-
-      $highestBidLabel.innerHTML = 'WINNING BID'
-
-      $highestBidAmount.innerHTML = ethVal(highestBid.amount) + ' ETH'
-      $highestBidder.innerHTML = `<a href="https://etherscan.io/address/${highestBid.bidder}" target="_blank" class="address">${await formatAddr(highestBid.bidder, provider, false)}</a>`
-
-
-
-    } else if (!isActive && auction.isSettled) {
-      hide($makeBidSection)
-      hide($timeLeftSection)
-      hide($settlementSection)
-      unhide($highestBidSection)
-      unhide($activeBidSection)
-      unhide($bidHistory)
-
-      $highestBidLabel.innerHTML = 'WINNING BID'
-      $highestBidAmount.innerHTML = ethVal(highestBid.amount) + ' ETH'
-      $highestBidder.innerHTML = `<a href="https://etherscan.io/address/${highestBid.bidder}" target="_blank" class="address">${await formatAddr(highestBid.bidder, provider, false)}</a>`
-
-    }
-    setMinBid = true
-
-    if (bidsMade.length) {
-      $previousBidList.innerHTML = bidsMade.map(bid => {
-        const bidAmount = Number(bid.amount.toFixed(14))
-        const bidAmountPretty = String(bidAmount).includes('.') ? bidAmount : bidAmount.toFixed(1)
-        return `
-          <li class="bidHistoryItem">
-            <div style="display: flex; justify-content: space-between">
-              <div>BID: ${bidAmountPretty} ETH</div>
-              <div>
-                <a href="https://etherscan.io/address/${bid.bidder}" target="_blank" class="address">${bid.bidderDisplay}</a>
-              </div>
-            </div>
-            <div>${new Date(bid.timestamp * 1000)}</div>
-          </li>
-        `
-      }).join('')
-    }
-
-
-    const formatTime = (amt, measurement) => Math.round(amt*100)/100 + ' ' + (amt === 1 ? measurement : measurement + 's')
-    const formatDuration = duration =>
-      duration < 60 ? formatTime(duration, 'second') :
-      duration < 3600 ? formatTime(duration / 60, 'minute') :
-      duration <= 86400 ? formatTime(duration / 3600, 'hour') :
-      formatTime(duration / 86400, 'day')
-
-
-    const auctionLength = formatDuration(auction.duration)
-    const reservePrice = ethVal(auction.minBid)
-    const bidExtension = formatDuration(bnToN(auction.bidTimeExtension))
-    const bidIncrease = bnToN(auction.bidIncreaseBps) / 100 + '%'
-    $answerContent.innerHTML = `
-      <ul>
-        <li>This auction has ${reservePrice ? `a reserve price of ${reservePrice} ETH` : 'no reserve price'}.</li>
-        <li>Once the first bid is made, the auction will last ${auctionLength}.</li>
-        <li>All bids made in the final ${bidExtension} will extend the auction.</li>
-        <li>All bids must be ${bidIncrease} higher than the previous bid.</li>
-        <li>Bids cannot be withdrawn once they are made.</li>
-        <li>All bids must be made in ETH.</li>
-      </ul>
-    `
 
 
   }
 
   provider.onConnect(async () => {
     const steviepAuction = await provider.contract(STEVIEP_AUCTION, auctionABI)
+    const uniswapV2 = await provider.contract(UNISWAP_V2, uniswapV2ABI)
     const rawSteviepAuction = provider.rawContract(STEVIEP_AUCTION, auctionABI)
 
-    setRunInterval(() => updateBidInfo(provider.signer, steviepAuction), 3000)
+    setRunInterval(() => updateBidInfo(provider.signer, steviepAuction, uniswapV2), 3000)
 
-
-    $submitBid.onclick = async () => {
-      hide($bidSectionContent)
-      hide($biddingHelp)
-      unhide($bidSectionLoading)
-      $bidSectionError.innerHTML = ''
-      $bidSectionLoadingMessage.innerHTML = 'Submitting...'
-
-      try {
-        const [highestBid, auction] = await Promise.all([
-          steviepAuction.auctionIdToHighestBid(AUCTION_ID),
-          steviepAuction.auctionIdToAuction(AUCTION_ID),
-        ])
-
-        const minBid = highestBid.amount
-          ? ethVal(highestBid.amount) * (1 + auction.bidIncreaseBps/10000)
-          : ethVal(auction.minBid)
-
-        if ($newBidAmount.value < minBid) {
-          throw new Error(`Bid must be at least ${minBid} ETH`)
-        }
-        const tx = await rawSteviepAuction.connect(provider.signer).bid(AUCTION_ID, ethValue($newBidAmount.value))
-
-        $bidSectionLoadingMessage.innerHTML = `TX Pending. <a href="https://etherscan.io/tx/${tx.hash}" target="_blank">View on etherscan</a>`
-
-        const txReciept1 = await tx.wait(1)
-
-        updateBidInfo(provider.signer, steviepAuction)
-
-        unhide($bidSectionContent)
-        unhide($biddingHelp)
-        hide($bidSectionLoading)
-
-      } catch (e) {
-        unhide($bidSectionContent)
-        hide($bidSectionLoading)
-        if (e.data) {
-          $bidSectionError.innerHTML = e.data.message
-        } else {
-          $bidSectionError.innerHTML = e.message
-        }
-      }
-    }
-
-
-    $submitSettlement.onclick = async () => {
-      hide($settlementSectionContent)
-      unhide($settlementSectionLoading)
-      $settlementSectionError.innerHTML = ''
-      $settlementSectionLoadingMessage.innerHTML = 'Submitting...'
-
-      try {
-        const tx = await rawSteviepAuction.connect(provider.signer).settle(AUCTION_ID)
-
-        $settlementSectionLoadingMessage.innerHTML = `TX Pending. <a href="https://etherscan.io/tx/${tx.hash}" target="_blank">View on etherscan</a>`
-
-        const txReciept1 = await tx.wait(1)
-
-        updateBidInfo(provider.signer, steviepAuction)
-
-        unhide($settlementSectionContent)
-        hide($settlementSectionLoading)
-
-      } catch (e) {
-        unhide($settlementSectionContent)
-        hide($settlementSectionLoading)
-        if (e.data) {
-          $settlementSectionError.innerHTML = e.data.message
-        } else {
-          $settlementSectionError.innerHTML = e.message
-        }
-      }
-    }
   })
 
 
-  let showingAnswer = false
-  $question.onclick = () => {
-    showingAnswer = true
-    hide($question)
-    unhide($answer)
-  }
 
-  $answerX.onclick = () => {
-    showingAnswer = false
-    unhide($question)
-    hide($answer)
-  }
 
+  async function getEthUsd(uniswapV2) {
+    const decimals = 2
+    const { _reserve0, _reserve1 } = await uniswapV2.getReserves()
+    return _reserve0.mul(1000000000000).mul(10**decimals).div(_reserve1).toNumber() / 10**decimals
+  }
 
 
 

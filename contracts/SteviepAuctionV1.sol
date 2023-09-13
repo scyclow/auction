@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-
 /*
 
  █████  ██    ██  ██████ ████████ ██  ██████  ███    ██
@@ -9,8 +8,6 @@
 ██   ██ ██    ██ ██         ██    ██ ██    ██ ██  ██ ██
 ██   ██  ██████   ██████    ██    ██  ██████  ██   ████
 
-TODO
-- buy now price
 */
 
 
@@ -26,7 +23,10 @@ interface IWETH {
 
 interface TokenContract {
   function mint(address to, uint256 tokenId) external;
+  function ownerOf(uint256 tokenId) external view returns (address);
   function safeTransferFrom(address from, address to, uint256 tokenId) external;
+  function getApproved(uint256 tokenId) external view returns (address);
+  function isApprovedForAll(address owner, address operator) external view returns (bool);
 }
 
 interface AllowList {
@@ -106,10 +106,10 @@ contract SteviepAuctionV1 is Ownable {
     uint256 tokenId;
     uint256 startTime;
     address beneficiary;
+    bool approveFutureTransfer;
     TokenContract tokenContract;
     RewardMinter rewardContract;
     AllowList allowListContract;
-    bool isSettled;
   }
 
   struct Bid {
@@ -118,13 +118,12 @@ contract SteviepAuctionV1 is Ownable {
     address bidder;
   }
 
-
   event BidMade(uint256 indexed auctionId, address indexed bidder, uint256 amount, uint256 timestamp);
   event Settled(uint256 indexed auctionId, uint256 timestamp);
 
   mapping(uint256 => Auction) public auctionIdToAuction;
   mapping(uint256 => Bid) public auctionIdToHighestBid;
-
+  mapping(uint256 => bool) public isSettled;
 
 
   function create(
@@ -135,26 +134,35 @@ contract SteviepAuctionV1 is Ownable {
     uint256 minBid,
     uint256 tokenId,
     address beneficiary,
+    bool approveFutureTransfer,
     TokenContract tokenContract,
     RewardMinter rewardContract,
     AllowList allowListContract
   ) external onlyOwner {
-    require(duration > 0);
-    require(bidIncreaseBps > 0);
-    require(address(tokenContract) != address(0));
+    require(duration > 0, 'Auction must have duration');
+    require(bidIncreaseBps > 0, 'Bid increase cannot be 0');
+    require(address(tokenContract) != address(0), 'Must include token address');
+    if (tokenExists) {
+      require(
+        tokenContract.getApproved(tokenId) == address(this) || tokenContract.isApprovedForAll(msg.sender, address(this)),
+        'Token must be approved'
+      );
+    }
 
     auctionIdToAuction[auctionCount].tokenExists = tokenExists;
     auctionIdToAuction[auctionCount].duration = duration;
     auctionIdToAuction[auctionCount].bidIncreaseBps = bidIncreaseBps;
     auctionIdToAuction[auctionCount].bidTimeExtension = bidTimeExtension;
-    auctionIdToAuction[auctionCount].minBid = minBid;
+    if (minBid == 0) auctionIdToAuction[auctionCount].minBid = 1;
+    else auctionIdToAuction[auctionCount].minBid = minBid;
     auctionIdToAuction[auctionCount].tokenId = tokenId;
     auctionIdToAuction[auctionCount].beneficiary = beneficiary;
     auctionIdToAuction[auctionCount].tokenContract = tokenContract;
     auctionIdToAuction[auctionCount].rewardContract = rewardContract;
     auctionIdToAuction[auctionCount].allowListContract = allowListContract;
+    auctionIdToAuction[auctionCount].approveFutureTransfer = approveFutureTransfer;
 
-    if (tokenExists) {
+    if (tokenExists && !approveFutureTransfer) {
       tokenContract.safeTransferFrom(msg.sender, address(this), tokenId);
     }
 
@@ -174,7 +182,7 @@ contract SteviepAuctionV1 is Ownable {
     Auction storage auction = auctionIdToAuction[auctionId];
     Bid storage highestBid = auctionIdToHighestBid[auctionId];
 
-    require(_isActive(auction, highestBid), 'Auction is not active');
+    require(_isActive(auctionId, auction, highestBid), 'Auction is not active');
 
     if (address(auction.allowListContract) != address(0)) {
       require(auction.allowListContract.balanceOf(msg.sender) > 0, 'Bidder not on allow list');
@@ -214,33 +222,56 @@ contract SteviepAuctionV1 is Ownable {
     Auction storage auction = auctionIdToAuction[auctionId];
 
     require(auction.duration > 0, 'Auction does not exist');
-    require(!auction.isSettled, 'Auction is not active');
+    require(!isSettled[auctionId], 'Auction is not active');
     require(highestBid.timestamp == 0, 'Auction has started');
 
     if (auction.tokenExists) {
       auction.tokenContract.safeTransferFrom(address(this), msg.sender, auction.tokenId);
     }
 
-    auction.isSettled = true;
+    isSettled[auctionId] = true;
   }
 
   function settle(uint256 auctionId) external {
     Auction storage auction = auctionIdToAuction[auctionId];
     Bid storage highestBid = auctionIdToHighestBid[auctionId];
 
-    require(!auction.isSettled, 'Auction has already been settled');
-    require(!_isActive(auction, highestBid), 'Auction is still active');
+    require(!isSettled[auctionId], 'Auction has already been settled');
+    require(!_isActive(auctionId, auction, highestBid), 'Auction is still active');
 
-    auction.isSettled = true;
+    isSettled[auctionId] = true;
 
     emit Settled(auctionId, block.timestamp);
 
     if (auction.tokenExists) {
-      auction.tokenContract.safeTransferFrom(address(this), highestBid.bidder, auction.tokenId);
-      payable(owner()).transfer(highestBid.amount);
+      if (auction.approveFutureTransfer) {
+
+        try auction.tokenContract.safeTransferFrom(
+          auction.tokenContract.ownerOf(auction.tokenId),
+          highestBid.bidder,
+          auction.tokenId
+        ) {
+          payable(auction.beneficiary).transfer(highestBid.amount);
+        } catch {
+          payable(highestBid.bidder).transfer(highestBid.amount);
+        }
+
+      } else {
+
+        try auction.tokenContract.safeTransferFrom(
+          address(this),
+          highestBid.bidder,
+          auction.tokenId
+        ) {
+          payable(auction.beneficiary).transfer(highestBid.amount);
+        } catch {
+          payable(highestBid.bidder).transfer(highestBid.amount);
+        }
+
+      }
     } else {
       try auction.tokenContract.mint(highestBid.bidder, auction.tokenId) {
-        payable(owner()).transfer(highestBid.amount);
+        payable(auction.beneficiary).transfer(highestBid.amount);
       } catch {
         payable(highestBid.bidder).transfer(highestBid.amount);
       }
@@ -251,11 +282,11 @@ contract SteviepAuctionV1 is Ownable {
     Auction memory auction = auctionIdToAuction[auctionId];
     Bid memory highestBid = auctionIdToHighestBid[auctionId];
 
-    return _isActive(auction, highestBid);
+    return _isActive(auctionId, auction, highestBid);
   }
 
-  function _isActive(Auction memory auction, Bid memory highestBid) private view returns (bool) {
-    if (highestBid.timestamp == 0) return !auction.isSettled && auction.duration > 0;
+  function _isActive(uint256 auctionId, Auction memory auction, Bid memory highestBid) private view returns (bool) {
+    if (highestBid.timestamp == 0) return !isSettled[auctionId] && auction.duration > 0;
 
     uint256 endTime = auction.startTime + auction.duration;
 

@@ -8,12 +8,14 @@
     "deploy:local": "hardhat run --network localhost scripts/deploy.local.js",
     "deploy:goerli": "npx hardhat run scripts/deploy.goerli.js --network goerli",
     "network": "npx hardhat node",
-    "hardhat": "hardhat"
+    "hardhat": "hardhat",
+    "serve": "serve docs"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@openzeppelin/contracts": "^4.8.0"
+    "@openzeppelin/contracts": "^4.8.0",
+    "serve": "^14.2.1"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.1",

@@ -25,10 +25,10 @@ const bid = 'bid(uint256)'
 const bidWithReward = 'bid(uint256,bool)'
 
 const expectOwnableError = p => expectRevert(p, 'Ownable: caller is not the owner')
-const createGenericAuction = () => SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
+const createGenericAuction = () => SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, false, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
 const contractBalance = contract => contract.provider.getBalance(contract.address)
 
-let admin, bidder1, bidder2
+let admin, bidder1, bidder2, randomBeneficiary
 let SteviepAuction, MinterMock, RewardMinterMock, AllowListMock, FaultyMinterMock
 
 
@@ -39,6 +39,7 @@ const auctionSetup = async () => {
   admin = signers[0]
   bidder1 = signers[1]
   bidder2 = signers[2]
+  randomBeneficiary = signers[3]
 
 
   const SteviepAuctionFactory = await ethers.getContractFactory('SteviepAuctionV1', admin)
@@ -93,6 +94,7 @@ describe('SteviepAuction', () => {
         111,
         0,
         admin.address,
+        false,
         ExistingTokenMock.address,
         RewardMinterMock.address,
         AllowListMock.address,
@@ -111,16 +113,17 @@ describe('SteviepAuction', () => {
       expect(auction0.tokenContract).to.equal(ExistingTokenMock.address)
       expect(auction0.rewardContract).to.equal(RewardMinterMock.address)
       expect(auction0.allowListContract).to.equal(AllowListMock.address)
-      expect(auction0.isSettled).to.equal(false)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(false)
 
       await SteviepAuction.connect(admin).create(
         false,
-        ONE_DAY,
-        1000,
-        TEN_MINUTES,
-        111,
+        ONE_DAY/2,
+        100,
+        TEN_MINUTES/2,
+        0,
         1,
         admin.address,
+        false,
         MinterMock.address,
         ZERO_ADDR,
         ZERO_ADDR,
@@ -132,11 +135,15 @@ describe('SteviepAuction', () => {
       expect(auction1.tokenContract).to.equal(MinterMock.address)
       expect(auction1.rewardContract).to.equal(ZERO_ADDR)
       expect(auction1.allowListContract).to.equal(ZERO_ADDR)
+      expect(auction1.minBid).to.equal(1)
+      expect(num(auction1.bidIncreaseBps)).to.equal(100)
+      expect(num(auction1.duration)).to.equal(ONE_DAY/2)
+      expect(num(auction1.bidTimeExtension)).to.equal(TEN_MINUTES/2)
     })
 
     it('reverts if called by non owner', async () => {
       await expectOwnableError(
-        SteviepAuction.connect(bidder1).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, MinterMock.address, RewardMinterMock.address, AllowListMock.address),
+        SteviepAuction.connect(bidder1).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, false, MinterMock.address, RewardMinterMock.address, AllowListMock.address),
       )
     })
 
@@ -146,7 +153,7 @@ describe('SteviepAuction', () => {
 
       expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(admin.address)
 
-      await SteviepAuction.connect(admin).create(true, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, ExistingTokenMock.address, ZERO_ADDR, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(true, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, false, ExistingTokenMock.address, ZERO_ADDR, ZERO_ADDR)
 
       expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(SteviepAuction.address)
     })
@@ -161,8 +168,8 @@ describe('SteviepAuction', () => {
 
     it('returns true if auction duration hasn\'t ellapsed yet', async () => {
       await createGenericAuction()
-      await SteviepAuction.connect(admin).create(false, ONE_DAY*2, 1000, TEN_MINUTES, 0, 0, admin.address, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
-      await SteviepAuction.connect(admin).create(false, ONE_DAY/2, 1000, TEN_MINUTES, 0, 0, admin.address, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(false, ONE_DAY*2, 1000, TEN_MINUTES, 0, 0, admin.address, false, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(false, ONE_DAY/2, 1000, TEN_MINUTES, 0, 0, admin.address, false, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
       await SteviepAuction.connect(bidder1)[bid](0, bidAmount(0.1))
       await SteviepAuction.connect(bidder1)[bid](1, bidAmount(0.1))
       await SteviepAuction.connect(bidder1)[bid](2, bidAmount(0.1))
@@ -290,7 +297,7 @@ describe('SteviepAuction', () => {
       expect(await RewardMinterMock.connect(admin).balanceOf(bidder1.address)).to.equal(0)
       expect(await RewardMinterMock.connect(admin).balanceOf(bidder2.address)).to.equal(0)
 
-      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, MinterMock.address, RewardMinterMock.address, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, false, MinterMock.address, RewardMinterMock.address, ZERO_ADDR)
       await SteviepAuction.connect(bidder1)[bidWithReward](1, true, bidAmount(0.1))
       await SteviepAuction.connect(bidder2)[bidWithReward](1, false, bidAmount(0.2))
 
@@ -347,7 +354,7 @@ describe('SteviepAuction', () => {
         'Auction is not active'
       )
 
-      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES - 60, 0, 0, admin.address, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES - 60, 0, 0, admin.address, false, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
       await SteviepAuction.connect(bidder1)[bid](1, bidAmount(0.1))
       await time.increase(time.duration.seconds(ONE_DAY - 30))
       await SteviepAuction.connect(bidder2)[bid](1, bidAmount(0.2))
@@ -376,7 +383,7 @@ describe('SteviepAuction', () => {
     })
 
     it('reverts if allow list given and bidder is not on it', async () => {
-      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, MinterMock.address, ZERO_ADDR, AllowListMock.address)
+      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, false, MinterMock.address, ZERO_ADDR, AllowListMock.address)
 
       await expectRevert(
         SteviepAuction.connect(bidder1)[bid](0, bidAmount(0.1)),
@@ -389,8 +396,8 @@ describe('SteviepAuction', () => {
     })
 
     it('reverts if bid is not x% higher than previous bid', async () => {
-      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
-      await SteviepAuction.connect(admin).create(false, ONE_DAY, 2000, TEN_MINUTES, 0, 0, admin.address, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, false, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(false, ONE_DAY, 2000, TEN_MINUTES, 0, 0, admin.address, false, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
 
       await SteviepAuction.connect(bidder1)[bid](0, bidAmount(0.1))
       await expectRevert(
@@ -413,7 +420,7 @@ describe('SteviepAuction', () => {
     })
 
     it('reverts if bid is not higher than min bid', async () => {
-      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, toETH(0.11), 0, admin.address, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, toETH(0.11), 0, admin.address, false, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
 
       const auction = await SteviepAuction.connect(admin).auctionIdToAuction(0)
 
@@ -430,7 +437,8 @@ describe('SteviepAuction', () => {
       await createGenericAuction()
       await SteviepAuction.connect(admin).cancel(0)
       const auction = await SteviepAuction.connect(admin).auctionIdToAuction(0)
-      expect(auction.isSettled).to.equal(true)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(true)
+
 
     })
     it('reverts if called by non owner', async () => {
@@ -481,7 +489,7 @@ describe('SteviepAuction', () => {
       await ExistingTokenMock.connect(admin).setApprovalForAll(SteviepAuction.address, true)
       expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(admin.address)
 
-      await SteviepAuction.connect(admin).create(true, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, ExistingTokenMock.address, ZERO_ADDR, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(true, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, false, ExistingTokenMock.address, ZERO_ADDR, ZERO_ADDR)
       expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(SteviepAuction.address)
 
       await SteviepAuction.connect(admin).cancel(0)
@@ -491,12 +499,16 @@ describe('SteviepAuction', () => {
 
   describe('settle', () => {
     it('mints the correct token + pays the correct beneficiary', async () => {
-      await createGenericAuction() // 0
+      // 0
+      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, randomBeneficiary.address, false, MinterMock.address, ZERO_ADDR, ZERO_ADDR)
+
+      const auction = await SteviepAuction.connect(admin).auctionIdToAuction(0)
+      expect(auction.beneficiary).to.equal(randomBeneficiary.address)
+
       await createGenericAuction() // 1
-      await createGenericAuction() // 2
 
       const startingContractBalance = ethVal(await contractBalance(SteviepAuction))
-      const startingAdminBalance = ethVal(await admin.getBalance())
+      const startingBeneficiaryBalance = ethVal(await randomBeneficiary.getBalance())
 
       await SteviepAuction.connect(bidder1)[bid](0, bidAmount(0.1))
       await SteviepAuction.connect(bidder2)[bid](0, bidAmount(0.2))
@@ -512,16 +524,14 @@ describe('SteviepAuction', () => {
       )
 
       const endingContractBalance = ethVal(await contractBalance(SteviepAuction))
-      const endingAdminBalance = ethVal(await admin.getBalance())
+      const endingBeneficiaryBalance = ethVal(await randomBeneficiary.getBalance())
 
 
       expect(middleContractBalance).to.equal(startingContractBalance +  0.2)
       expect(endingContractBalance).to.equal(startingContractBalance)
 
-      expect(endingAdminBalance - startingAdminBalance).to.be.closeTo(0.2, 0.00001)
-
-      const auction = await SteviepAuction.connect(admin).auctionIdToAuction(0)
-      expect(auction.isSettled).to.equal(true)
+      expect(endingBeneficiaryBalance - startingBeneficiaryBalance).to.be.closeTo(0.2, 0.00001)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(true)
       expect(await MinterMock.connect(admin).ownerOf(0)).to.equal(bidder2.address)
     })
 
@@ -530,7 +540,8 @@ describe('SteviepAuction', () => {
       await ExistingTokenMock.connect(admin).setApprovalForAll(SteviepAuction.address, true)
       expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(admin.address)
 
-      await SteviepAuction.connect(admin).create(true, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, ExistingTokenMock.address, ZERO_ADDR, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(true, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, false, ExistingTokenMock.address, ZERO_ADDR, ZERO_ADDR)
+      expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(SteviepAuction.address)
 
       const startingContractBalance = ethVal(await contractBalance(SteviepAuction))
       const startingAdminBalance = ethVal(await admin.getBalance())
@@ -546,16 +557,119 @@ describe('SteviepAuction', () => {
       const endingContractBalance = ethVal(await contractBalance(SteviepAuction))
       const endingAdminBalance = ethVal(await admin.getBalance())
 
-     expect(middleContractBalance).to.equal(startingContractBalance +  0.1)
+      expect(middleContractBalance).to.equal(startingContractBalance +  0.1)
       expect(endingContractBalance).to.equal(startingContractBalance)
 
       expect(endingAdminBalance - startingAdminBalance).to.be.closeTo(0.1, 0.00001)
-
-      const auction = await SteviepAuction.connect(admin).auctionIdToAuction(0)
-      expect(auction.isSettled).to.equal(true)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(true)
 
       expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(bidder1.address)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(true)
     })
+
+    it('transfers the token to the winner from the admin (if they still hold it) + pays the admin', async () => {
+      await ExistingTokenMock.connect(admin).mint(admin.address, 0)
+      await ExistingTokenMock.connect(admin).setApprovalForAll(SteviepAuction.address, true)
+      expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(admin.address)
+
+      await SteviepAuction.connect(admin).create(true, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, true, ExistingTokenMock.address, ZERO_ADDR, ZERO_ADDR)
+
+
+      const startingContractBalance = ethVal(await contractBalance(SteviepAuction))
+      const startingAdminBalance = ethVal(await admin.getBalance())
+
+      await SteviepAuction.connect(bidder1)[bid](0, bidAmount(0.1))
+      await time.increase(time.duration.seconds(ONE_DAY + 1))
+
+      const middleContractBalance = ethVal(await contractBalance(SteviepAuction))
+
+      expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(admin.address)
+      await SteviepAuction.connect(bidder1).settle(0)
+
+      const endingContractBalance = ethVal(await contractBalance(SteviepAuction))
+      const endingAdminBalance = ethVal(await admin.getBalance())
+
+      expect(middleContractBalance).to.equal(startingContractBalance +  0.1)
+      expect(endingContractBalance).to.equal(startingContractBalance)
+
+      expect(endingAdminBalance - startingAdminBalance).to.be.closeTo(0.1, 0.00001)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(true)
+
+      expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(bidder1.address)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(true)
+    })
+
+    it('transfers the token to the winner from the admin (if they still hold it) + pays the admin with a single token approval', async () => {
+      await ExistingTokenMock.connect(admin).mint(admin.address, 0)
+      await ExistingTokenMock.connect(admin).approve(SteviepAuction.address, 0)
+      expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(admin.address)
+
+      await SteviepAuction.connect(admin).create(true, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, true, ExistingTokenMock.address, ZERO_ADDR, ZERO_ADDR)
+      expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(admin.address)
+
+
+      const startingContractBalance = ethVal(await contractBalance(SteviepAuction))
+      const startingAdminBalance = ethVal(await admin.getBalance())
+
+      await SteviepAuction.connect(bidder1)[bid](0, bidAmount(0.1))
+      await time.increase(time.duration.seconds(ONE_DAY + 1))
+
+      const middleContractBalance = ethVal(await contractBalance(SteviepAuction))
+
+      expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(admin.address)
+      await SteviepAuction.connect(bidder1).settle(0)
+
+      const endingContractBalance = ethVal(await contractBalance(SteviepAuction))
+      const endingAdminBalance = ethVal(await admin.getBalance())
+
+      expect(middleContractBalance).to.equal(startingContractBalance +  0.1)
+      expect(endingContractBalance).to.equal(startingContractBalance)
+
+      expect(endingAdminBalance - startingAdminBalance).to.be.closeTo(0.1, 0.00001)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(true)
+
+      expect(await ExistingTokenMock.connect(admin).ownerOf(0)).to.equal(bidder1.address)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(true)
+    })
+
+    it('refunds the bidder if cannot transfer from admin', async () => {
+      await ExistingTokenMock.connect(admin).mint(admin.address, 0)
+      await ExistingTokenMock.connect(admin).approve(SteviepAuction.address, 0)
+      await SteviepAuction.connect(admin).create(true, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, true, ExistingTokenMock.address, ZERO_ADDR, ZERO_ADDR)
+
+      const startingContractBalance = ethVal(await contractBalance(SteviepAuction))
+      const startingAdminBalance = ethVal(await admin.getBalance())
+      const startingBidderBalance = ethVal(await bidder1.getBalance())
+
+      await SteviepAuction.connect(bidder1)[bid](0, bidAmount(0.1))
+
+      await time.increase(time.duration.seconds(ONE_DAY + 1))
+
+
+      await ExistingTokenMock.connect(admin)[safeTransferFrom](admin.address, randomBeneficiary.address, 0)
+
+      await SteviepAuction.connect(bidder1).settle(0)
+
+      const endingContractBalance = ethVal(await contractBalance(SteviepAuction))
+      const endingAdminBalance = ethVal(await admin.getBalance())
+      const endingBidderBalance = ethVal(await bidder1.getBalance())
+
+
+      expect(endingContractBalance).to.equal(startingContractBalance)
+      expect(endingAdminBalance).to.be.closeTo(startingAdminBalance, 0.01)
+      expect(endingBidderBalance).to.be.closeTo(startingBidderBalance, 0.01)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(true)
+
+      const auctionEvents = await SteviepAuction.queryFilter({
+        address: SteviepAuction.address,
+        topics: []
+      })
+
+      expect(auctionEvents.length).to.equal(3)
+      expect(auctionEvents[2].event).to.equal('Settled')
+
+    })
+
 
     it('emits Settled', async () => {
       await createGenericAuction()
@@ -612,7 +726,7 @@ describe('SteviepAuction', () => {
     })
 
     it('refunds the bidder if minting fails for some reason', async () => {
-      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, FaultyMinterMock.address, ZERO_ADDR, ZERO_ADDR)
+      await SteviepAuction.connect(admin).create(false, ONE_DAY, 1000, TEN_MINUTES, 0, 0, admin.address, false, FaultyMinterMock.address, ZERO_ADDR, ZERO_ADDR)
 
       const startingContractBalance = ethVal(await contractBalance(SteviepAuction))
       const startingAdminBalance = ethVal(await admin.getBalance())
@@ -632,9 +746,7 @@ describe('SteviepAuction', () => {
       expect(endingContractBalance).to.equal(startingContractBalance)
       expect(endingAdminBalance).to.be.closeTo(startingAdminBalance, 0.01)
       expect(endingBidderBalance).to.be.closeTo(startingBidderBalance, 0.01)
-
-      const auction = await SteviepAuction.connect(admin).auctionIdToAuction(0)
-      expect(auction.isSettled).to.equal(true)
+      expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(true)
 
       const auctionEvents = await SteviepAuction.queryFilter({
         address: SteviepAuction.address,

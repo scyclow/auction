@@ -48,10 +48,10 @@ const ConnectWallet = (web3Provider, connectButtonId) => class extends BaseCompo
   constructor() {
     super()
     this.provider = web3Provider
-    this.$noWeb = $.id(this.template, 'case-noWeb3')
-    this.$notConnected = $.id(this.template, 'case-notConnected')
-    this.$connected = $.id(this.template, 'case-connected')
-    this.$connectionError = $.id(this.template, 'case-connectionError')
+    this.$noWeb = $.id('case-noWeb3', this.template)
+    this.$notConnected = $.id('case-notConnected', this.template)
+    this.$connected = $.id('case-connected', this.template)
+    this.$connectionError = $.id('case-connectionError', this.template)
 
     this.update('isEthBrowser', this.provider.isEthBrowser)
 
@@ -61,6 +61,8 @@ const ConnectWallet = (web3Provider, connectButtonId) => class extends BaseCompo
       this.update('connectedAddr', addr)
     })
 
+
+
   }
 
   unhide(element) {
@@ -69,19 +71,19 @@ const ConnectWallet = (web3Provider, connectButtonId) => class extends BaseCompo
 
   render(template, attrs) {
     if (attrs.hasError) {
-      this.unhide($.id(template, 'case-connectionError'))
+      this.unhide($.id('case-connectionError', template))
       return template
 
     } else if (!attrs.isEthBrowser) {
-      this.unhide($.id(template, 'case-noWeb3'))
+      this.unhide($.id('case-noWeb3', template))
       return template
 
     } else if (attrs.connectedAddr) {
-      this.unhide($.id(template, 'case-connected'))
+      this.unhide($.id('case-connected', template))
       return template
 
     } else {
-      this.unhide($.id(template, 'case-notConnected'))
+      this.unhide($.id('case-notConnected', template))
       return template
     }
   }
@@ -140,18 +142,18 @@ const ConnectButton = (web3Provider) => class extends BaseComponent('connectButt
 
   render(template, attrs) {
     if (attrs.isLoading) {
-      this.hide($.id(template, 'case-connectNotLoading'))
-      this.unhide($.id(template, 'case-connectLoading'))
+      this.hide($.id('case-connectNotLoading', template))
+      this.unhide($.id('case-connectLoading', template))
     } else {
-      this.hide($.id(template, 'case-connectLoading'))
-      this.unhide($.id(template, 'case-connectNotLoading'))
+      this.hide($.id('case-connectLoading', template))
+      this.unhide($.id('case-connectNotLoading', template))
     }
 
     if (attrs.errorMsg) {
-      this.unhide($.id(template, 'case-connectError'))
+      this.unhide($.id('case-connectError', template))
       this.$error.innerHTML = attrs.errorMsg
     } else {
-      this.hide($.id(template, 'case-connectError'))
+      this.hide($.id('case-connectError', template))
     }
 
     return template

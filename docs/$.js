@@ -1,10 +1,10 @@
 
 const $ = (elem, prop, value) => elem.style[prop] = value
-$.cls = (elem, selector) => Array.isArray(elem)
+$.cls = (selector, elem=document) => Array.isArray(elem)
   ? elem.map(e => $.cls(e, selector)).flat()
   : Array.from(elem.getElementsByClassName(selector))
 
-$.id = (elem, selector) => Array.isArray(elem)
+$.id = (selector, elem=document) => Array.isArray(elem)
   ? elem.find(e => $.id(e, selector))
   : elem.getElementById(selector)
 
