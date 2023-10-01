@@ -83,7 +83,7 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
     #connectedAs {
       font-size: 1.25em;
     }
-    #lastUpdated, #connectedAs, #connectedBalance {
+    #lastUpdated, #connectedAs, #connectedBalance, #connectedNetwork {
       font-family: monospace;
     }
 
@@ -165,7 +165,7 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
       column-gap: 1vw;
-      row-gap: 1.5vw;
+      row-gap: 1vw;
     }
 
     .grid img {
@@ -193,12 +193,24 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
     .infoCard {
       background: #fff;
       display: inline-block;
-      transform: translate(1px, calc(-100% - 1px));
+      transform: translate(1px, calc(-100% - 5px));
       padding: 0.5em;
       opacity: 0.7;
     }
 
     .infoCard {
+      color: #000;
+    }
+
+    .auctionPanel:hover .infoCard {
+      background: #000;
+      color: #fff;
+    }
+
+    .nightmode .auctionPanel:hover .infoCard {
+      background: #fff;
+    }
+    .nightmode .auctionPanel:hover .infoCard * {
       color: #000;
     }
 
@@ -212,6 +224,14 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
     .auctionInfo {
       font-family: monospace;
       font-size: 0.9em;
+    }
+
+    .auctionPanel img {
+      border-color: #000;
+    }
+
+    .nightmode .auctionPanel img {
+      border-color: #fff;
     }
 
 
@@ -234,6 +254,7 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
         <section>
           <h3 class="label">CONNECTED AS: <span id="connectedAs"></span></h3>
           <div id="connectedBalance"></div>
+          <div id="connectedNetwork"></div>
         </section>
       </section>
     </connect-wallet>
@@ -364,12 +385,13 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
   const $lastUpdated = $.id('lastUpdated')
   const $connectedAs = $.id('connectedAs')
   const $connectedBalance = $.id('connectedBalance')
+  const $connectedNetwork = $.id('connectedNetwork')
 
 
 
 
   $grid.innerHTML = auctions.map(a => `
-    <div>
+    <div class="auctionPanel">
       <a href="${a.url}">
         <img src="${a.img}">
         <div style="height: 0">
@@ -397,11 +419,12 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
       blockNumber,
       formattedAddr,
       connectedBalance,
-      ethUsd
+      connectedNetwork
     ] = await Promise.all([
       provider.provider.getBlockNumber(),
       formatAddr(signerAddr, provider),
       provider.getETHBalance(signerAddr),
+      provider.getNetwork()
     ])
 
 
@@ -462,6 +485,16 @@ explain this auction is for x time, bids extend by x, bids must increase by x%
     }</a>`
     $connectedBalance.innerHTML = `Balance: ${ethVal(connectedBalance)} ETH`
 
+    let networkName, networkDescriptor
+    if (connectedNetwork.name && connectedNetwork.name !== 'unknown') {
+      networkName = connectedNetwork.chainId === 1 ? 'mainnet' : connectedNetwork.name
+      networkDescriptor = 'Network'
+    } else {
+      networkName = connectedNetwork.chainId
+      networkDescriptor = 'Network ID'
+    }
+
+    $connectedNetwork.innerHTML = `${networkDescriptor}: ${networkName}`
 
   }
 

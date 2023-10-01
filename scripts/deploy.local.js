@@ -37,12 +37,13 @@ async function main() {
     '100000000000000000',
     1,
     admin.address,
+    false,
     MinterMock.address,
     RewardMinterMock.address,
     ZERO_ADDR,
   )
 
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 15; i++) {
     await SteviepAuction.connect(admin).create(
       false,
       30,
@@ -51,6 +52,7 @@ async function main() {
       '100000000000000000',
       1,
       admin.address,
+      false,
       MinterMock.address,
       RewardMinterMock.address,
       ZERO_ADDR,

@@ -288,11 +288,9 @@ contract SteviepAuctionV1 is Ownable {
   function _isActive(uint256 auctionId, Auction memory auction, Bid memory highestBid) private view returns (bool) {
     if (highestBid.timestamp == 0) return !isSettled[auctionId] && auction.duration > 0;
 
-    uint256 endTime = auction.startTime + auction.duration;
-
     return (
-      block.timestamp < endTime
-      || block.timestamp < highestBid.timestamp + auction.bidTimeExtension
+      block.timestamp < _naturalEndTime(auction)
+      || block.timestamp < _bidderEndTime(highestBid, auction)
     );
   }
 
@@ -300,10 +298,22 @@ contract SteviepAuctionV1 is Ownable {
     Auction memory auction = auctionIdToAuction[auctionId];
     Bid memory highestBid = auctionIdToHighestBid[auctionId];
 
-    uint256 naturalEndTime = auction.startTime + auction.duration;
-    uint256 bidderEndTime = highestBid.timestamp + auction.bidTimeExtension;
+    uint256 naturalEndTime = _naturalEndTime(auction);
+    uint256 bidderEndTime = _bidderEndTime(highestBid, auction);
 
     return naturalEndTime > bidderEndTime ? naturalEndTime : bidderEndTime;
+  }
+
+  function _naturalEndTime(Auction memory auction) private pure returns (uint256) {
+    return auction.startTime > 0
+      ? auction.startTime + auction.duration
+      : 0;
+  }
+
+  function _bidderEndTime(Bid memory highestBid, Auction memory auction) private pure returns (uint256) {
+    return auction.startTime > 0
+      ? highestBid.timestamp + auction.bidTimeExtension
+      : 0;
   }
 
 

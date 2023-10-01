@@ -114,6 +114,8 @@ describe('SteviepAuction', () => {
       expect(auction0.rewardContract).to.equal(RewardMinterMock.address)
       expect(auction0.allowListContract).to.equal(AllowListMock.address)
       expect(await SteviepAuction.connect(admin).isSettled(0)).to.equal(false)
+      expect(await SteviepAuction.connect(admin).isActive(0)).to.equal(true)
+      expect(await SteviepAuction.connect(admin).auctionEndTime(0)).to.equal(0)
 
       await SteviepAuction.connect(admin).create(
         false,

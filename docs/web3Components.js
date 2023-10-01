@@ -72,6 +72,10 @@ class Web3Provider {
   async getETHBalance(addr) {
     return this.provider.getBalance(addr)
   }
+
+  async getNetwork() {
+    return this.provider.getNetwork()
+  }
 }
 
 
